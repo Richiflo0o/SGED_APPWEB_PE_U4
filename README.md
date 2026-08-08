@@ -28,6 +28,28 @@ ProFútbol: estudiantes, entrenadores, asistencias, evaluaciones y reportes.
 * Base de datos: PostgreSQL 16 (estrategia híbrida ORM + funciones/procedimientos almacenados)
 * Orquestación: Docker Compose (imágenes pinadas por digest sha256)
 
+## Flujo de una petición autenticada (MVC Spring Boot)
+
+Diagrama de secuencia del ciclo de vida de una petición autenticada
+(`GET /api/estudiantes`) con las clases y métodos reales del proyecto:
+
+![Flujo MVC Spring Boot](docs/diagramas/flujo-mvc-springboot.png)
+
+1. **Cliente Angular** (`authInterceptor`) envía `GET /api/estudiantes` con `withCredentials: true`; el navegador adjunta la cookie HttpOnly `sged_access`.
+2. `SecurityConfig.securityFilterChain()` registra `JwtAuthenticationFilter` antes de `UsernamePasswordAuthenticationFilter`.
+3. `JwtAuthenticationFilter.doFilterInternal()` extrae el token de la cookie con `extractAccessToken()`.
+4. `JwtService` valida la firma/expiración (`isTokenValid`) y extrae `username` y `jti`.
+5. `RedisBlacklistService.estaRevocado(jti)` verifica que el token no esté en la blacklist de Redis.
+6. `UserDetailsServiceImpl.loadUserByUsername()` carga el usuario con sus roles (`ROLE_*`).
+7. Se establece el `UsernamePasswordAuthenticationToken` en el `SecurityContextHolder`.
+8. La autorización por rol evalúa `@PreAuthorize("hasAnyRole(...)")` y el `DispatcherServlet` mapea la ruta a `EstudianteController.listar()`.
+9. `EstudianteService.listar(Pageable)` corre bajo `@Transactional(readOnly = true)` y consulta primero la caché Redis (`@Cacheable`).
+10. `EstudianteRepository.findByActivoTrue(Pageable)` (Spring Data JPA/Hibernate) consulta PostgreSQL.
+11. El service mapea la entidad a DTOs (`EstudianteResponse` / `EstudiantePageResponse`).
+12. Jackson serializa la respuesta a JSON y se devuelve `HTTP 200 application/json` al cliente.
+
+Fuente versionable: [`docs/diagramas/flujo-mvc-springboot.puml`](docs/diagramas/flujo-mvc-springboot.puml).
+
 ## Arranque en un solo comando (Bloque B.1)
 
 Requisitos: Docker + Docker Compose + GNU Make.

@@ -1,0 +1,110 @@
+@startuml
+' Flujo MVC autenticado en Spring Boot 3 — SGED (PFC Aplicaciones Web)
+' Fuente del diagrama: docs/diagramas/flujo-mvc-springboot.png
+title Flujo de una petición autenticada — GET /api/estudiantes\n(MVC Spring Boot 3 · SGED ProFútbol)
+
+skinparam defaultFontName "DejaVu Sans"
+skinparam defaultFontSize 11
+skinparam sequenceMessageAlign center
+skinparam sequenceParticipantPadding 24
+skinparam sequenceArrowThickness 1.4
+skinparam shadowing false
+skinparam dpi 150
+
+actor "Cliente Angular\n(authInterceptor +\nAuthService)" as ANGULAR
+
+box "Spring Security 6" #E8F0FE
+    participant "SecurityConfig\nsecurityFilterChain()" as SFC
+    participant "JwtAuthenticationFilter\ndoFilterInternal()" as JWT
+    participant "JwtService\nextractUsername()/isTokenValid()" as JS
+    participant "RedisBlacklistService\nestaRevocado()" as RB
+    participant "UserDetailsServiceImpl\nloadUserByUsername()" as UDS
+    participant "SecurityContextHolder\nsetAuthentication()" as SC
+end box
+
+box "Capa MVC (Web)" #E6F4EA
+    participant "EstudianteController\nlistar()" as CTRL
+    participant "EstudianteService\nlistar() @Transactional" as SVC
+end box
+
+database "Redis\n(caché cache-aside)" as CACHE
+
+box "Acceso a datos (JPA)" #FEF7E0
+    participant "EstudianteRepository\nfindByActivoTrue()" as REPO
+    database "PostgreSQL\nacademico.estudiantes" as DB
+end box
+
+participant "Jackson\n(serializador JSON)" as JACK
+
+ANGULAR -> SFC: GET /api/estudiantes\nCookie: sged_access (HttpOnly)\nwithCredentials = true
+activate SFC
+
+SFC -> JWT: addFilterBefore(jwtAuthFilter,\nUsernamePasswordAuthenticationFilter.class)
+activate JWT
+
+JWT -> JWT: extractAccessToken(request)\n→ lee cookie "sged_access"
+JWT -> JS: extractUsername(token)
+activate JS
+JS --> JWT: username
+deactivate JS
+
+JWT -> JS: extractJti(token)
+activate JS
+JS --> JWT: jti
+deactivate JS
+
+JWT -> RB: estaRevocado(jti)
+activate RB
+RB --> JWT: false (token no revocado)
+deactivate RB
+
+JWT -> UDS: loadUserByUsername(username)
+activate UDS
+UDS --> JWT: UserDetails + ROLE_*\n(ADMINISTRADOR/ENTRENADOR/USER)
+deactivate UDS
+
+JWT -> SC: setAuthentication(\nUsernamePasswordAuthenticationToken)
+activate SC
+SC --> JWT: contexto autenticado
+deactivate SC
+
+JWT --> SFC: filterChain.doFilter(...) → continúa la cadena
+deactivate JWT
+
+SFC -> CTRL: DispatcherServlet mapea GET /api/estudiantes\n@PreAuthorize("hasAnyRole('ADMINISTRADOR',\n'ENTRENADOR', 'USER')") → concedido
+activate CTRL
+
+CTRL -> SVC: listar(page, size, sort)\n@Cacheable("estudiantes")\n@Transactional(readOnly = true)
+activate SVC
+
+SVC -> CACHE: get("estudiantes::0-10")\n(cache-aside)
+activate CACHE
+
+alt Caché vacía (cache miss)
+    CACHE --> SVC: null
+    SVC -> REPO: findByActivoTrue(pageable)
+    activate REPO
+    REPO -> DB: SELECT … WHERE activo = true\n(SQL generado por Hibernate/JPA)
+    activate DB
+    DB --> REPO: Page<Estudiante>
+    deactivate DB
+    REPO --> SVC: Page<Estudiante>
+    deactivate REPO
+    SVC -> CACHE: put("estudiantes::0-10", respuesta)
+else Caché con datos (cache hit)
+    CACHE --> SVC: EstudiantePageResponse cacheado
+end
+
+deactivate CACHE
+SVC --> CTRL: EstudiantePageResponse<EstudianteResponse>\n(toResponse(): Entidad → DTO)
+deactivate SVC
+
+CTRL -> JACK: ResponseEntity 200 OK\n(body = EstudiantePageResponse)
+activate JACK
+JACK --> ANGULAR: JSON { content, page, size,\ntotalElements, totalPages }\nContent-Type: application/json
+deactivate JACK
+
+deactivate CTRL
+deactivate SFC
+
+@enduml
