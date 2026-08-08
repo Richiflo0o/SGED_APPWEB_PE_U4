@@ -1,13 +1,25 @@
 # SGED — Sistema de Gestión para la Escuela Deportiva ProFútbol
 
-[![CI](https://github.com/DarwinSM21/SGED_APPWEB/actions/workflows/ci.yml/badge.svg)](https://github.com/DarwinSM21/SGED_APPWEB/actions)
+> **Repositorio de la Práctica Experimental — Unidad IV**
+> Aplicaciones Web (111) · 5.° nivel · PPA 2026-2027 · Universidad Técnica Estatal de Quevedo
+>
+> Aquí se desarrolla la práctica de la Unidad IV sobre el Proyecto Fin de Curso
+> (PFC): aplicación MVC completa con los módulos de la Entrega 1B funcionando,
+> API REST documentada con Swagger, consumo de API externa con caché Redis,
+> seguridad OWASP, pruebas de carga y el informe técnico final.
+>
+> Este repositorio es un clon derivado de `DarwinSM21/SGED_APPWEB` (historial
+> completo de las entregas 1A–3 conservado); el trabajo de esta práctica se
+> registra en las ramas `feature/u4-*`.
+
+[![CI](https://github.com/Richiflo0o/SGED_APPWEB_PE_U4/actions/workflows/ci.yml/badge.svg)](https://github.com/Richiflo0o/SGED_APPWEB_PE_U4/actions)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21713240.svg)](https://doi.org/10.5281/zenodo.21713240)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Aplicación web para la gestión administrativa y deportiva de la escuela
 ProFútbol: estudiantes, entrenadores, asistencias, evaluaciones y reportes.
 
-**Versión de esta entrega:** `v0.9.0-rc` (Tercera Entrega, PFC Aplicaciones Web, UTEQ)
+**Versión de esta entrega:** `v1.0.0-rc` (Práctica Experimental Unidad IV, construida sobre `v0.9.0-rc` de la Tercera Entrega)
 
 ## Pila tecnológica
 
@@ -21,9 +33,9 @@ ProFútbol: estudiantes, entrenadores, asistencias, evaluaciones y reportes.
 Requisitos: Docker + Docker Compose + GNU Make.
 
 ```bash
-git clone https://github.com/DarwinSM21/SGED_APPWEB.git
-cd SGED_APPWEB
-git checkout v0.9.0-rc
+git clone https://github.com/Richiflo0o/SGED_APPWEB_PE_U4.git
+cd SGED_APPWEB_PE_U4
+git checkout main
 cp .env.example .env
 make up
 ```
@@ -85,9 +97,17 @@ mediciones, trazabilidad, ética), `k6/`, `scripts/`, `.github/workflows/`.
 
 ## Integrantes
 
+Equipo PFC (entregas 1A–3):
 * ARCALLE GREFA DARWIN ORLANDO
 * PALLO PINTO ALEJANDRO DANIEL
 * VELEZ LOPEZ RICARDO ELIAS
+
+Equipo Práctica Experimental Unidad IV:
+* VELEZ LOPEZ RICARDO ELIAS
+* Integrante A
+* Integrante B
+
+<!-- TODO(U4): reemplazar "Integrante A" e "Integrante B" por los nombres reales del grupo de la práctica -->
 
 Roles CRediT: ver `CONTRIBUTORS.md`.
 
