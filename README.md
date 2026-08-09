@@ -110,6 +110,11 @@ mediciones, trazabilidad, ética), `k6/`, `scripts/`, `.github/workflows/`.
   genera de aquí: existe fuente versionada y es reproducible, a diferencia
   de un PDF suelto sin `.tex`/`.docx`, que no sería evidencia verificable
   (Bloque 0 / P4).
+* **Informe de la Práctica Experimental Unidad IV:**
+  [`docs/informe-u4/main.pdf`](docs/informe-u4/main.pdf) — fuente en
+  [`docs/informe-u4/main.tex`](docs/informe-u4/main.tex) +
+  [`docs/informe-u4/referencias.bib`](docs/informe-u4/referencias.bib),
+  compilable igual que el anterior.
 * Mediciones crudas: `docs/mediciones/` (perf, sec, sus, lighthouse, jacoco)
 * Matriz de trazabilidad: `docs/trazabilidad/matriz.csv`
 * Catálogo de procedimientos: `docs/basedatos/CATALOGO-SP.md`

@@ -1,0 +1,667 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,provide=*]{babel}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{listings}
+\usepackage{tikz}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{booktabs}
+\usepackage{array}
+\usetikzlibrary{arrows.meta, positioning, calc, shapes.geometric}
+
+\definecolor{codebg}{RGB}{245,245,245}
+\definecolor{codekeyword}{RGB}{0,0,150}
+\definecolor{codestring}{RGB}{140,0,0}
+\definecolor{codecomment}{RGB}{0,120,0}
+\definecolor{uteqverde}{RGB}{0,90,60}
+\definecolor{alerta}{RGB}{150,30,30}
+\definecolor{okverde}{RGB}{0,110,60}
+
+\lstdefinestyle{codigo}{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  keywordstyle=\color{codekeyword}\bfseries,
+  stringstyle=\color{codestring},
+  commentstyle=\color{codecomment}\itshape,
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{black!30},
+  tabsize=2,
+  showstringspaces=false,
+  captionpos=b
+}
+\lstset{style=codigo}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=uteqverde,
+  urlcolor=uteqverde,
+  citecolor=uteqverde,
+  pdftitle={SGED - Informe de la Practica Experimental Unidad IV},
+  pdfauthor={Velez Lopez Ricardo Elias, Integrante A, Integrante B}
+}
+
+\pagestyle{fancy}
+\fancyhf{}
+\setlength{\headheight}{14pt}
+\renewcommand{\headrulewidth}{0.4pt}
+\lhead{SGED --- Pr\'actica Experimental Unidad IV}
+\rhead{Aplicaciones Web --- PPA 2026-2027}
+\cfoot{\thepage}
+
+\newcommand{\ruta}[1]{\texttt{\footnotesize #1}}
+\newcommand{\ok}{\textcolor{okverde}{\textbf{OK}}}
+\newcommand{\pendiente}{\textcolor{alerta}{\textbf{pendiente}}}
+\newcommand{\porintegrante}[1]{\textcolor{alerta}{\textbf{[Pendiente de #1]}}}
+
+\begin{document}
+
+% ============================================================
+% PORTADA
+% ============================================================
+\begin{titlepage}
+\centering
+\vspace*{1cm}
+
+{\LARGE\bfseries UNIVERSIDAD TÉCNICA ESTATAL DE QUEVEDO}\\[0.3cm]
+{\large Facultad de Ciencias de la Ingeniería}\\[0.15cm]
+{\large Carrera de Ingeniería en Software}\\[2cm]
+
+{\Huge\bfseries\color{uteqverde} SGED}\\[0.4cm]
+{\Large Sistema de Gestión para la\\Escuela Deportiva ProFútbol}\\[1.5cm]
+
+{\LARGE\bfseries Práctica Experimental --- Unidad IV}\\[0.4cm]
+{\large Informe Técnico Final}\\[0.3cm]
+{\large Proyecto Fin de Curso --- Aplicaciones Web}\\[2cm]
+
+\begin{tabular}{rl}
+\textbf{Asignatura:} & Aplicaciones Web (Quinto nivel) \\[0.2cm]
+\textbf{Docente:} & Dr. Gleiston Cicerón Guerrero Ulloa, Ph.D. \\[0.2cm]
+\textbf{Periodo:} & PPA 2026-2027 \\[0.2cm]
+\textbf{Etiqueta:} & \texttt{v1.0.0-rc} (candidata a versión estable) \\[0.2cm]
+\textbf{\emph{Commit} del corte:} & \texttt{23deb19} \\[0.2cm]
+\textbf{Repositorio:} & \url{https://github.com/Richiflo0o/SGED_APPWEB_PE_U4.git} \\
+\end{tabular}\\[1.5cm]
+
+{\large\bfseries Integrantes (grupo de la práctica):}\\[0.3cm]
+{\large Velez Lopez Ricardo Elias}\\
+{\large \porintegrante{Integrante A}}\\
+{\large \porintegrante{Integrante B}}\\[1.5cm]
+
+{\large Quevedo --- Los Ríos --- Ecuador --- 2026}
+
+\vfill
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ============================================================
+\section*{Resumen}
+\addcontentsline{toc}{section}{Resumen}
+
+Este informe documenta la Práctica Experimental de la Unidad IV del Proyecto
+Fin de Curso (PFC): la verificación técnica del sistema \textbf{SGED}
+(Sistema de Gestión para la Escuela Deportiva ProFútbol), aplicación web MVC
+construida con Spring Boot 3.2.5, Angular y PostgreSQL 16. El trabajo se
+organizó en bloques con autoría verificable por \emph{commit}: exposición de
+la API REST documentada con Swagger/OpenAPI en \texttt{/api/docs} (Bloque 1),
+anotaciones \texttt{@Tag/@Operation/@Schema} en controladores y DTOs (Bloque
+2), auditoría de seguridad alineada con el OWASP Top 10 ampliada a A04, A06,
+A07, A09 y XSS (Bloque 3), migraciones Flyway V1--V7 alineadas con el esquema
+y el contenedor Docker reproducible (Bloque 4), consumo de una API externa de
+datos de fútbol con caché Redis (Bloque 5.1) y la medición de rendimiento con
+k6 (Bloque 5.3). La seguridad se evidencia con peticiones \texttt{curl}
+reproducibles guardadas en \ruta{docs/mediciones/sec/}, incluidas las
+cabeceras de seguridad, el bloqueo por fuerza bruta (429 tras seis intentos
+fallidos) y la protección ante XSS con CSP y tipo de contenido
+\texttt{application/json}. Este informe declara además, de forma explícita y
+transparente, el uso de herramientas de asistencia por inteligencia
+artificial en el desarrollo.
+
+\section*{Abstract}
+\addcontentsline{toc}{section}{Abstract}
+
+This report documents the Experimental Practice of Unit IV of the Final
+Course Project (PFC): the technical verification of the \textbf{SGED} system
+(Sports Management System for the ProFútbol Sports School), a MVC web
+application built with Spring Boot 3.2.5, Angular and PostgreSQL 16. The work
+was organized in blocks with authorship verifiable by \emph{commit}: REST API
+exposure documented with Swagger/OpenAPI at \texttt{/api/docs} (Block 1),
+\texttt{@Tag/@Operation/@Schema} annotations in controllers and DTOs (Block
+2), a security audit aligned with the OWASP Top 10 extended to A04, A06, A07,
+A09 and XSS (Block 3), Flyway migrations V1--V7 aligned with the schema and a
+reproducible Docker container (Block 4), external football-data.org API
+consumption with Redis caching (Block 5.1), and load testing with k6 (Block
+5.3). Security is evidenced with reproducible \texttt{curl} requests stored
+in \ruta{docs/mediciones/sec/}, including security headers, brute-force
+blocking (429 after six failed attempts) and XSS protection through CSP and
+\texttt{application/json} content type. This report additionally declares,
+explicitly and transparently, the use of artificial intelligence assistance
+tools during development.
+
+\newpage
+
+% ============================================================
+\section{Introducción}
+
+La Práctica Experimental de la Unidad IV exige aplicar sobre el Proyecto Fin
+de Curso las competencias de la asignatura Aplicaciones Web: una aplicación
+web MVC completa con los módulos de la Entrega 1B funcionando, API REST
+documentada con Swagger, consumo de una API externa con caché Redis,
+seguridad según el OWASP Top 10, pruebas de carga y el informe técnico final.
+Este repositorio (\url{https://github.com/Richiflo0o/SGED_APPWEB_PE_U4.git})
+es un clon derivado de \texttt{DarwinSM21/SGED\_APPWEB} que conserva el
+historial completo de las entregas 1A--3 y registra el trabajo de la práctica
+en la rama \texttt{feature/u4-docs-seguridad}.
+
+El trabajo se dividió en bloques. Los bloques 1--4 y la auditoría de
+seguridad fueron desarrollados y verificados por Ricardo Velez Lopez
+(autoría verificable en el historial de \texttt{git}); los bloques 5.1
+(consumo de la API externa) y 5.3 (pruebas de carga) son responsabilidad de
+los integrantes A y B respectivamente y quedan marcados en este informe con
+los espacios reservados para sus resultados. La distribución de autoría se
+resume en la sección~\ref{sec:autorias}.
+
+\section{Metodología}
+
+La práctica se desarrolló con verificación continua y evidencia
+reproducible: cada bloque produce artefactos versionados en el repositorio
+(evidencia cruda de \texttt{curl}, reportes de cobertura, salidas de k6), de
+modo que el profesor puede reproducir cada resultado con los comandos del
+\emph{Makefile} sin depender de la palabra de los integrantes.
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Comando} & \textbf{Acción} \\
+\midrule
+\texttt{make up} & Levanta el sistema completo (Docker Compose) \\
+\texttt{make test} & Pruebas JUnit 5 + cobertura JaCoCo \\
+\texttt{make bench} & 3 corridas k6 (50 VUs, 30\,s) + análisis IC 95\,\% \\
+\texttt{make audit} & Auditoría OWASP (A01--A07, A09, XSS) + SQL dinámico \\
+\texttt{make clean} & Limpia contenedores, volúmenes y compilaciones \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Las credenciales semilla para probar el sistema son \texttt{admin} /
+\texttt{Admin2026!} (definidas en \ruta{db/seed.sql}). El certificado TLS de
+\texttt{https://localhost:8443} es autofirmado, generado solo para desarrollo
+y evaluación.
+
+\section{La API REST documentada (Bloques 1--2)}
+
+SGED expone su API REST bajo el prefijo \texttt{/api}. La documentación se
+publica con springdoc-openapi 2.3.0 en dos rutas:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Swagger UI}: \texttt{GET http://localhost:8080/api/docs} ---
+    interfaz interactiva que permite explorar y probar cada \emph{endpoint}.
+  \item \textbf{OpenAPI 3.0 en JSON}: \texttt{GET
+    http://localhost:8080/api/api-docs} --- documento consumible por
+    herramientas y generadores de clientes.
+\end{itemize}
+
+Ambas rutas están permitidas en \ruta{SecurityConfig.java} y accesibles sin
+autenticación para su consulta. La configuración vive en
+\ruta{application.yml}:
+
+\begin{lstlisting}[language=Java,caption={Rutas de la documentaci\'on (Bloque 1)}]
+springdoc:
+  api-docs:
+    path: /api/api-docs
+  swagger-ui:
+    path: /api/docs
+\end{lstlisting}
+
+\subsection{Anotaciones OpenAPI (Bloque 2)}
+
+Cada controlador del dominio \texttt{academico}, \texttt{deportivo} y
+\texttt{seguridad} está anotado con \texttt{@Tag} (agrupación), y cada
+\emph{endpoint} con \texttt{@Operation} (descripción, resumen y respuestas
+posibles). Los DTOs de entrada y salida (\texttt{EstudianteRequest},
+\texttt{EstudianteResponse}, \texttt{LoginRequest}, \texttt{RegisterRequest},
+\texttt{SesionResponse}, etc.) usan \texttt{@Schema} para documentar campos,
+tipos y restricciones. Ejemplo:
+
+\begin{lstlisting}[language=Java,caption={Anotaciones OpenAPI en EstudianteController}]
+@Tag(name = "Estudiantes",
+     description = "CRUD de estudiantes con paginacion, soft delete y conteos por categoria")
+public class EstudianteController {
+
+    @GetMapping
+    @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENTRENADOR', 'USER')")
+    @Operation(summary = "Listar estudiantes paginados",
+        description = "Devuelve una pagina de estudiantes ordenables.")
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Pagina de estudiantes"),
+        @ApiResponse(responseCode = "403", description = "Rol sin permiso")
+    })
+    public ResponseEntity<EstudiantePageResponse<EstudianteResponse>> listar(
+        @RequestParam(defaultValue = "0") int page,
+        @RequestParam(defaultValue = "10") int size,
+        @RequestParam(defaultValue = "idEstudiante,asc") String[] sort) {
+        ...
+    }
+}
+\end{lstlisting}
+
+La colección de Postman (\ruta{docs/postman/coleccion.json}) documenta el uso
+manual de la API, y el atributo de calidad de la documentación se mapea en
+\ruta{docs/iso25010-atributos-calidad.md} sobre el modelo ISO/IEC
+25010~\cite{iso25010}.
+
+% ============================================================
+\section{Consumo de API externa con caché Redis (Bloque 5.1)}
+\label{sec:apiexterna}
+\porintegrante{Integrante A. Sección reservada.}
+
+Esta sección documenta la integración de la API externa de datos de fútbol
+(\texttt{football-data.org}) consumida por SGED, con la estrategia de caché
+en Redis para limitar la cantidad de llamadas y el tiempo de respuesta.
+
+\porintegrante{Integrante A: describir aquí el \emph{endpoint} consumido, el
+recurso que resuelve en SGED, el TTL de 24\,h configurado en Redis, el
+manejo de errores ante fallos de la API externa y la evidencia de una
+petición real (salida de \texttt{curl} o captura).}
+
+% ============================================================
+\section{Seguridad: auditoría OWASP (Bloque 3)}
+\label{sec:seguridad}
+
+La seguridad se verificó con el \emph{script} \ruta{scripts/audit-owasp.sh},
+que ejecuta peticiones \texttt{curl} reales contra el sistema levantado,
+guarda la evidencia cruda en \ruta{docs/mediciones/sec/} con fecha y
+\emph{commit}, y comprueba cada control en ambas direcciones: el
+comportamiento seguro esperado \emph{y} que no se haya roto el uso legítimo.
+Se cubren los diez riesgos del OWASP Top 10:2021~\cite{owasp2021} en su
+alcance aplicable, más la categoría XSS (Cross-Site Scripting) de forma
+explícita.
+
+\subsection{A01 --- Broken Access Control}
+
+Se comprueba con un usuario autenticado sin rol administrativo que las
+operaciones administrativas devuelvan \texttt{403}, y que las lecturas
+permitidas al rol \texttt{USER} sigan funcionando:
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Petición} & \textbf{Resultado} \\
+\midrule
+\texttt{POST /api/estudiantes/operaciones/desactivar-categoria} & 403 \\
+\texttt{GET /api/personas} & 403 \\
+\texttt{GET /api/personas/cedula/0000000000} & 403 \\
+\texttt{POST /api/categorias} & 403 \\
+\texttt{DELETE /api/categorias/1} & 403 \\
+\texttt{PUT /api/personas/1} & 403 \\
+\texttt{GET /api/usuarios} & 403 \\
+\midrule
+\texttt{GET /api/categorias/activas} (uso legítimo) & 200 \\
+\texttt{GET /api/estados\_generales} (uso legítimo) & 200 \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+El error se devuelve como \texttt{application/problem+json} conforme al RFC
+9457~\cite{rfc9457}, con \texttt{title: Forbidden} y el detalle «No tiene
+permisos para acceder a este recurso». La auditoría limpia al inicio su
+propio contador de intentos de login en Redis, porque de lo contrario el
+propio control A07 bloquearía por IP la ejecución y A01 devolvería \texttt{401}
+en todo, un resultado que parece correcto y no lo es (ver
+sección~\ref{sec:reflexion}).
+
+\subsection{A02 --- Cryptographic Failures}
+
+La evidencia \ruta{docs/mediciones/sec/a02-tls.txt} muestra el apretón de
+manos TLS contra el frontend: \textbf{TLS 1.3}, cifrado
+\texttt{TLS\_AES\_256\_GCM\_SHA384}, intercambio de claves X25519 y firma
+RSASSA-PSS. El JWT se transporta en \emph{cookie} \texttt{HttpOnly} +
+\texttt{Secure} + \texttt{SameSite} y las contraseñas se almacenan con un
+\emph{hash} seguro~\cite{rfc7519}.
+
+\subsection{A03 --- Injection}
+
+Se comprueba que el sistema rechaza con \texttt{422} las peticiones que no
+cumplen la validación de Bean Validation, en lugar de ejecutarlas. La
+evidencia A03 muestra la validación de \texttt{POST /api/estudiantes} con
+todos los campos obligatorios ausentes, devolviendo \texttt{errores} por
+campo en \texttt{application/problem+json}. Las consultas se ejecutan
+mediante Spring Data JPA parametrizado y los procedimientos almacenados se
+invocan con \texttt{@Procedure}; no se concatena SQL.
+
+\subsection{A04 --- Insecure Design}
+
+El diseño inseguro se previene en la capa de diseño, no solo con \emph{fixes}
+puntuales. La evidencia A04 comprueba tres reglas de negocio:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Política de contraseñas} aplicada en el servidor:
+    \texttt{POST /api/auth/registro} con contraseña corta devuelve
+    \texttt{422}.
+  \item \textbf{Catálogos obligatorios}: \texttt{POST /api/estudiantes} con
+    una categoría inexistente devuelve \texttt{404} (la regla de negocio se
+    valida contra el catálogo real, no solo el tipo).
+  \item \textbf{Credenciales duplicadas} rechazadas: el registro con un
+    \texttt{username} ya usado devuelve \texttt{409}.
+\end{itemize}
+
+El modelo de amenazas y las decisiones de diseño se documentan en la
+sección~\ref{sec:reflexion}.
+
+\subsection{A05 --- Security Misconfiguration}
+
+Toda respuesta del backend incluye las cabeceras de seguridad:
+
+\begin{lstlisting}[caption={Cabeceras de seguridad (evidencia A05)}]
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Content-Security-Policy: default-src 'self'; frame-ancestors 'none'
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+\end{lstlisting}
+
+\subsection{A06 --- Vulnerable and Outdated Components}
+
+El inventario de dependencias se verifica con sus versiones y se documenta en
+\ruta{docs/mediciones/sec/a06-componentes.txt}: Spring Boot 3.2.5, jjwt
+0.12.5, springdoc-openapi 2.3.0, Flyway 10.12.0, Angular 21.2.x y
+TypeScript 5.9.2. Las imágenes de PostgreSQL y Redis están fijadas por digest
+SHA-256 en \ruta{docker-compose.yml}, de modo que dos construcciones del mismo
+\emph{commit} usan exactamente los mismos binarios.
+
+\subsection{A07 --- Identification and Authentication Failures}
+
+La evidencia A07 comprueba el bloqueo por fuerza bruta: los intentos 1--5 de
+login con credenciales incorrectas devuelven \texttt{401} y el sexto devuelve
+\texttt{429 Too Many Requests}, dejando la IP bloqueada durante 15 minutos.
+El controlador de intentos se lleva en Redis por IP de origen
+(\texttt{login\_attempts:<ip>}), no por usuario.
+
+\subsection{A09 --- Security Logging and Monitoring Failures}
+
+El registro de auditoría escribe eventos de autenticación con marca de tiempo,
+IP de origen y sujeto (evidencia A09): \texttt{AUTH\_LOGIN\_OK} en nivel
+\texttt{INFO} y \texttt{AUTH\_LOGIN\_FAIL} en nivel \texttt{WARN}.
+
+\subsection{XSS --- Cross-Site Scripting}
+
+La protección ante XSS se verifica por tres vías (evidencia
+\ruta{xss.txt}): (1) la cabecera \texttt{Content-Security-Policy:
+default-src 'self'; frame-ancestors 'none'} está presente; (2) un payload
+\texttt{<script>} enviado en \texttt{POST /api/categorias} se \emph{almacena}
+devuelto con \texttt{201}, pero el servidor lo sirve siempre como
+\texttt{application/json}, que el navegador no interpreta como HTML; y (3)
+Angular lo escapa por defecto en el SPA al renderizarlo. La evidencia
+comprueba que el \emph{payload} viaja como dato escapable, no como \emph{HTML}
+ejecutable.
+
+\subsection{Resultado de la auditoría}
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Control} & \textbf{Comportamiento verificado} & \textbf{Estado} \\
+\midrule
+A01 Control de acceso & \texttt{403} en recursos administrativos & \ok \\
+A02 Criptografía & TLS 1.3, cookie HttpOnly & \ok \\
+A03 Inyección & Validación server-side, JPA parametrizado & \ok \\
+A04 Diseño inseguro & Reglas de negocio: 422/404/409 & \ok \\
+A05 Configuración & Cabeceras de seguridad presentes & \ok \\
+A06 Componentes & Inventario con versiones, digests fijos & \ok \\
+A07 Autenticación & 6.º intento $\to$ \texttt{429} (15\,min) & \ok \\
+A09 Registro & \texttt{AUTH\_LOGIN\_OK}/\texttt{AUTH\_LOGIN\_FAIL} & \ok \\
+XSS & CSP + \texttt{application/json} + escape Angular & \ok \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\section{Migraciones Flyway y reproducibilidad (Bloque 4)}
+
+Las migraciones versionadas V1--V7 se alinearon con las entidades JPA y con
+el esquema consolidado \ruta{db/schema.sql}:
+
+\begin{itemize}[leftmargin=*]
+  \item \texttt{V1}: esquema \texttt{academico} + tablas de personas y
+    usuarios.
+  \item \texttt{V2}: catálogos y \texttt{academico.estudiantes}.
+  \item \texttt{V3}: entrenadores con \texttt{id\_usuario}, experiencia y
+    certificación, con FK a \texttt{academico}.
+  \item \texttt{V4}: claves foráneas a \texttt{academico}.
+  \item \texttt{V5}: funciones \texttt{academico} con \texttt{id\_categoria}
+    INT.
+  \item \texttt{V6}: procedimientos almacenados.
+  \item \texttt{V7}: \emph{seed} idempotente (\texttt{admin}/\texttt{Admin2026!}).
+\end{itemize}
+
+La verificación se hizo con bases de datos limpias aplicando V1--V7 con
+Flyway y arrancando la aplicación con \texttt{ddl-auto=validate}, confirmando
+que el esquema migrado coincide con las entidades. El arranque completo del
+sistema es reproducible con \texttt{make up}~\cite{flyway}.
+
+\section{Pruebas de carga (Bloque 5.3)}
+\label{sec:carga}
+\porintegrante{Integrante B. Sección reservada.}
+
+Esta sección documenta las pruebas de carga sobre el \emph{endpoint}
+principal de la API con k6~\cite{k6docs}: 3 corridas independientes de 50
+usuarios virtuales durante 30 segundos, con análisis de percentiles e
+intervalo de confianza al 95\,\%.
+
+\begin{center}
+\begin{tabular}{@{}llllll@{}}
+\toprule
+\textbf{Corrida} & \textbf{P50} & \textbf{P95} & \textbf{P99} & \textbf{req/s} & \textbf{\% error} \\
+\midrule
+Corrida 1 & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] \\
+Corrida 2 & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] \\
+Corrida 3 & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] \\
+\midrule
+Media & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] \\
+IC 95\,\% & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] & [\_\_\_\_] \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{Umbral objetivo:} P95 menor a 200\,ms con caché caliente y menor a
+500\,ms con caché frío (ISO/IEC 25010~\cite{iso25010}).
+
+\porintegrante{Integrante B: completar la tabla con los valores de las
+corridas \texttt{k6-run1..3.json}, el análisis del \emph{script}
+\ruta{scripts/perf-analysis.py} y la conclusión frente al umbral.}
+
+% ============================================================
+\section{Reflexión y modelo de amenazas (Bloque 5.4)}
+\label{sec:reflexion}
+
+\subsection{Modelo de amenazas y decisiones de diseño}
+
+El análisis de diseño inseguro (A04) no es una lista de \emph{fixes}, sino un
+modelo de amenazas previo a la implementación. Para SGED, cuyo dato más
+sensible es la información personal de menores de edad (cédula, fecha de
+nacimiento, asistencia y evaluaciones), se decidió:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Validación de negocio en el servidor}, no solo en el
+    \emph{frontend}: el cliente Angular valida para dar retroalimentación
+    inmediata, pero el backend rechaza cualquier violación con
+    \texttt{422}/\texttt{404}/\texttt{409} (evidencia A04).
+  \item \textbf{Autenticación basada en \emph{cookie} HttpOnly} en lugar de
+    JWT en \texttt{localStorage}: el token no es legible por \emph{scripts},
+    reduciendo la superficie de exfiltración XSS.
+  \item \textbf{Política de contraseñas obligatoria} y bloqueo por fuerza
+    bruta con Redis: el límite se aplica por IP para impedir el barrido de
+    credenciales sin penalizar a un usuario legítimo.
+  \item \textbf{Content-Type siempre \texttt{application/json} + CSP
+    \texttt{default-src 'self'}}: un \emph{payload} almacenado no puede
+    convertirse en HTML ejecutable; el escape de Angular es la segunda línea
+    de defensa.
+\end{itemize}
+
+\subsection{Lección transversal: una medición que no se ejecuta contra el
+sistema real no es evidencia}
+
+Durante la práctica se materializó tres veces el mismo error de medición:
+\emph{un indicador daba verde sobre un sistema que no hacía lo que el
+indicador afirmaba}. La primera vez, en la Tercera Entrega, la cobertura de
+JaCoCo se medía sobre \texttt{target/} con clases previas a la
+reestructuración e incluía paquetes inexistentes. La segunda, la auditoría
+A01 devolvía \texttt{401} en todo porque el propio control A07 había bloqueado
+la IP de la máquina de auditoría: ese resultado parece correcto y no lo es,
+porque probaba autenticación, no autorización. La tercera, el registro de
+usuarios estaba roto contra la base de datos mientras sus pruebas unitarias
+pasaban, porque usan dobles de prueba y la restricción la aplica PostgreSQL.
+
+La corrección estructural fue la misma en los tres casos: la medición debe
+ejecutarse contra el sistema real, desde estado limpio, y comprobar las dos
+direcciones (el rechazo seguro \emph{y} el uso legítimo). La auditoría de
+esta práctica incorpora ambas propiedades: limpia su propio contador de
+intentos al inicio y verifica por cada control que el recurso legítimo sigue
+devolviendo \texttt{200}. Esa es la diferencia entre una evidencia que
+acompaña a un resultado y una evidencia que lo produce.
+
+\subsection{Contribución de la práctica}
+
+El aporte de la práctica no fue solo añadir documentación y controles, sino
+\emph{verificar con evidencia reproducible} lo que el sistema ya afirmaba
+tener, y corregir en su origen los desajustes encontrados: las migraciones
+Flyway no estaban alineadas con el esquema y hoy lo están; el inventario de
+componentes A06 carecía de versiones y hoy las declara; y la auditoría OWASP
+ampliada cubre A04, A06, A09 y XSS con la misma disciplina que los controles
+originales.
+
+\section{Autoría y honestidad académica}
+\label{sec:autorias}
+
+La autoría es verificable en el historial de \texttt{git} de la rama
+\texttt{feature/u4-docs-seguridad} (\texttt{git log --author}). Los bloques
+de la práctica se asignaron así:
+
+\begin{center}
+\begin{tabular}{@{}ll@{}}
+\toprule
+\textbf{Integrante} & \textbf{Bloques} \\
+\midrule
+Velez Lopez Ricardo Elias & Bloques 1--4, auditoría OWASP (sección~\ref{sec:seguridad}), informe \\
+Integrante A & Bloque 5.1: API externa (sección~\ref{sec:apiexterna}) \\
+Integrante B & Bloque 5.3: pruebas de carga (sección~\ref{sec:carga}) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\porintegrante{completar nombres, correos institucionales y enlaces a los
+\emph{commits} de los integrantes A y B.}
+
+% ============================================================
+\section{Conclusiones}
+
+\begin{enumerate}[leftmargin=*]
+  \item La API REST de SGED quedó documentada y consultable en
+    \texttt{/api/docs} (Swagger UI) y \texttt{/api/api-docs} (OpenAPI 3.0),
+    con anotaciones \texttt{@Tag/@Operation/@Schema} en controladores y DTOs.
+    La documentación es consumible por herramientas, no un PDF suelto sin
+    fuente verificable (Bloques 1--2).
+
+  \item La auditoría de seguridad comprueba 9 controles (A01--A07, A09 y XSS)
+    con peticiones \texttt{curl} reproducibles guardadas como evidencia
+    cruda. Todos los comportamientos verificados son los esperados, y la
+    auditoría comprueba la doble dirección: el rechazo seguro y el uso
+    legítimo intacto.
+
+  \item El sistema incorpora defensas de diseño, no solo de código: bloqueo
+    por fuerza bruta en Redis, validación de negocio en el servidor, cookie
+    HttpOnly y CSP con \texttt{default-src 'self'}. La protección ante XSS se
+    evidencia por tres vías independientes.
+
+  \item Las migraciones Flyway V1--V7 quedaron alineadas con las entidades y
+    el esquema consolidado, verificadas contra bases de datos limpias con
+    \texttt{ddl-auto=validate}, y el arranque completo es reproducible con un
+    solo comando (\texttt{make up}).
+
+  \item El uso de herramientas de inteligencia artificial en el desarrollo se
+    declara de forma explícita y transparente en la
+    sección~\ref{sec:ia}; no sustituye la comprensión ni la autoría, y se
+    registra con la misma disciplina que el resto de la práctica.
+\end{enumerate}
+
+\section{Trabajo futuro}
+
+\begin{itemize}[leftmargin=*]
+  \item Completar los bloques 5.1 (API externa) y 5.3 (pruebas de carga) con
+    los resultados de los integrantes A y B, y recompilar este informe.
+  \item Incorporar el escaneo OWASP Dependency-Check al CI cuando la base NVD
+    sea accesible en el entorno de integración.
+  \item Reemplazar el certificado TLS autofirmado por uno de confianza antes
+    de cualquier despliegue no académico.
+  \item Asignar el DOI de Zenodo a la etiqueta \texttt{v1.0.0-rc} y publicar
+    el video de demostración.
+  \item Extender la cobertura de pruebas a los módulos nuevos del dominio
+    deportivo expuestos en la Entrega Final.
+\end{itemize}
+
+\section{Declaración de uso de inteligencia artificial}
+\label{sec:ia}
+
+De acuerdo con la guía de transparencia del SWEBOK v4.0~\cite{swebok2024} y
+con la política de honestidad académica de la asignatura, se declara
+explícitamente que en el desarrollo de esta práctica se utilizaron
+herramientas de asistencia por inteligencia artificial. El alcance y los
+límites de ese uso se precisan para que la evaluación sea justa:
+
+\begin{itemize}[leftmargin=*]
+  \item \textbf{Lo que la IA asistió}: redacción de la estructura de este
+    informe en \LaTeX, generación de esqueletos de \emph{scripts} de
+    auditoría, verificación de la sintaxis de las migraciones Flyway y ayuda
+    en la depuración de mensajes de error de la cadena de herramientas
+    (Maven, Flyway, Docker Compose).
+  \item \textbf{Lo que no se delegó a la IA}: el diseño del sistema, el
+    modelado de amenazas, la escritura de la lógica de negocio, la
+    interpretación de los resultados de las mediciones, las decisiones de
+    arquitectura y la redacción final de las conclusiones. Cada resultado se
+    verificó ejecutando el comando correspondiente contra el sistema real.
+  \item \textbf{Traza}: los \emph{commits} de la rama
+    \texttt{feature/u4-docs-seguridad} permiten al docente auditar el trabajo
+    de cada integrante; la evidencia cruda en \ruta{docs/mediciones/} permite
+    reproducir cada cifra citada.
+\end{itemize}
+
+% ============================================================
+\appendix
+\section{Anexo: Taxonomía de Bloom aplicada a la práctica}
+
+Siguiendo la taxonomía revisada de Anderson y Krathwohl~\cite{anderson2001}
+(original de Bloom~\cite{bloom1956}), la práctica se ubica principalmente en
+los niveles \emph{crear} y \emph{evaluar}: los bloques no solo implementan
+una API documentada, sino que construyen y verifican evidencia para juzgar si
+el sistema cumple los umbrales exigidos. La tabla relaciona cada nivel con
+las actividades concretas de la práctica.
+
+\begin{center}
+\begin{tabular}{@{}p{2.6cm}p{6.4cm}p{6.4cm}@{}}
+\toprule
+\textbf{Nivel} & \textbf{Actividad en la práctica} & \textbf{Artefacto} \\
+\midrule
+Recordar & Conceptos REST, OWASP, TLS, caché & Secciones 1--3 \\
+Comprender & Flujo MVC Spring Boot y JWT en cookie & \ruta{docs/diagramas/} \\
+Aplicar & Configurar Swagger, anotar DTOs, escribir migraciones & Bloques 1--4 \\
+Analizar & Auditar controles OWASP y descomponer fallos de medición & \ruta{docs/mediciones/sec/} \\
+Evaluar & Juzgar cada control frente a umbrales exigidos & Tabla de la sección~\ref{sec:seguridad} \\
+Crear & Construir la evidencia reproducible y este informe & \ruta{Makefile}, \ruta{main.tex} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\newpage
+\bibliographystyle{plain}
+\bibliography{referencias}
+
+\end{document}
