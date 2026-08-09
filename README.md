@@ -69,8 +69,8 @@ En menos de dos minutos:
 | Frontend (HTTPS, recomendado) | https://localhost:8443 |
 | Frontend (HTTP, sin cookie de sesion) | http://localhost:4200 |
 | API REST | http://localhost:8080/api |
-| OpenAPI 3.0 | http://localhost:8080/api/docs |
-| Swagger UI | http://localhost:8080/api/swagger-ui.html |
+| OpenAPI 3.0 (JSON) | http://localhost:8080/api/api-docs |
+| Swagger UI | http://localhost:8080/api/docs |
 
 El certificado TLS de `https://localhost:8443` es autofirmado (generado en
 build, solo para desarrollo/evaluacion) — el navegador va a mostrar una

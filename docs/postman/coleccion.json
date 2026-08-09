@@ -594,18 +594,18 @@
       "name": "04 Documentación",
       "item": [
         {
-          "name": "OpenAPI 3.0 (200, /api/docs)",
+          "name": "OpenAPI 3.0 (200, /api/api-docs)",
           "request": {
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/api/docs",
+              "raw": "{{base_url}}/api/api-docs",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "api",
-                "docs"
+                "api-docs"
               ]
             },
             "description": ""
