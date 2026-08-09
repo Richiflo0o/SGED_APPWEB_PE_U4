@@ -170,12 +170,19 @@ echo "  -> $OUT/a05-cabeceras.txt"
 
 echo "== A06: componentes vulnerables (inventario de versiones) =="
 { cabecera "A06 - Vulnerable and Outdated Components";
-  echo "-- inventario backend (pom.xml) --";
-  grep -oE "<(artifactId|version)>[^<]+</(artifactId|version)>" backend/pom.xml \
-    | paste - - 2>/dev/null | sed 's/<[^>]*>//g' | grep -iE "spring-boot|springdoc|jjwt|lombok|postgres" | head -20;
+  echo "-- Spring Boot (parent) --";
+  grep -A1 "spring-boot-starter-parent" backend/pom.xml | grep "<version>" | sed 's/[[:space:]]*<[^>]*>//g';
   echo "";
-  echo "-- inventario frontend (package.json) --";
-  grep -E "\"(@angular/|angular|express|ngrx|rxjs|zone.js)\"" frontend/package.json | head -20;
+  echo "-- dependencias con version explicita (pom.xml) --";
+  awk '
+    /<artifactId>/ { a=$0; sub(/.*<artifactId>/,""); sub(/<\/artifactId>.*/,""); gsub(/[[:space:]]/,"",a) }
+    /<version>/ { v=$0; sub(/.*<version>/,""); sub(/<\/version>.*/,""); gsub(/[[:space:]]/,"",v);
+      if (a!="" && v!="") print "  " a " -> " v; a=""; v="" }
+    /<\/dependency>/ { a=""; v="" }
+  ' backend/pom.xml | head -20;
+  echo "";
+  echo "-- frontend (package.json) --";
+  grep -E "\"(angular|@angular/[a-z-]+|rxjs|typescript|zone.js)\"" frontend/package.json;
   echo "";
   echo "-- nota: el escaneo OWASP dependency-check requiere descargar la base NVD;";
   echo "--   en el CI se documenta el inventario y se pinan digests de imagen (docker-compose.yml).";
