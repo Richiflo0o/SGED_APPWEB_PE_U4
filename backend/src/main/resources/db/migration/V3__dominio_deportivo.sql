@@ -32,31 +32,26 @@ INSERT INTO deportivo.posiciones (nombre, abreviatura, descripcion) VALUES
     ('Delantero centro', 'DC', 'Referencia ofensiva')
 ON CONFLICT (nombre) DO NOTHING;
 
--- Entrenadores
+-- Entrenadores (alineado con Entrenador.java y db/schema.sql)
 CREATE TABLE IF NOT EXISTS deportivo.entrenadores (
     id_entrenador BIGSERIAL PRIMARY KEY,
-    id_persona BIGINT NOT NULL REFERENCES seguridad.personas(id_persona),
-    especialidad VARCHAR(100),
-    fecha_contratacion DATE,
+    id_persona BIGINT NOT NULL UNIQUE REFERENCES seguridad.personas(id_persona),
+    id_usuario BIGINT NOT NULL UNIQUE REFERENCES seguridad.usuarios(id_usuario),
+    especialidad VARCHAR(150),
+    experiencia_anios SMALLINT,
+    certificacion VARCHAR(255),
     activo BOOLEAN NOT NULL DEFAULT TRUE,
-    creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    actualizado_en TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_entrenadores_persona
-    ON deportivo.entrenadores(id_persona);
-
-CREATE TRIGGER trg_entrenadores_actualizado_en
-BEFORE UPDATE ON deportivo.entrenadores
-FOR EACH ROW EXECUTE FUNCTION deportivo.set_actualizado_en();
-
 -- Ampliacion de estudiantes: posicion y codigo RFID
-ALTER TABLE seguridad.estudiantes
+ALTER TABLE academico.estudiantes
     ADD COLUMN IF NOT EXISTS id_posicion BIGINT REFERENCES deportivo.posiciones(id_posicion),
     ADD COLUMN IF NOT EXISTS rfid_codigo VARCHAR(100);
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_estudiantes_rfid
-    ON seguridad.estudiantes(rfid_codigo)
+    ON academico.estudiantes(rfid_codigo)
     WHERE rfid_codigo IS NOT NULL;
 
 -- Horarios recurrentes de entrenamiento
@@ -107,7 +102,7 @@ FOR EACH ROW EXECUTE FUNCTION deportivo.set_actualizado_en();
 CREATE TABLE IF NOT EXISTS deportivo.asistencias (
     id_asistencia BIGSERIAL PRIMARY KEY,
     id_sesion BIGINT NOT NULL REFERENCES deportivo.sesiones_entrenamiento(id_sesion),
-    id_estudiante BIGINT NOT NULL REFERENCES seguridad.estudiantes(id_estudiante),
+    id_estudiante BIGINT NOT NULL REFERENCES academico.estudiantes(id_estudiante),
     hora_entrada TIME,
     metodo VARCHAR(10) NOT NULL DEFAULT 'MANUAL'
         CHECK (metodo IN ('RFID', 'MANUAL')),
