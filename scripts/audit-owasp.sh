@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Auditoría automática de los 6 controles OWASP mínimos (Bloque C.2).
+# Auditoría automática de controles OWASP (A01-A07, A09, XSS) (Bloque C.2 + U4).
 # Guarda la evidencia cruda en docs/mediciones/sec/ con fecha y commit.
 set -uo pipefail
 
@@ -103,6 +103,61 @@ echo "== A03: inyección (payload ' OR '1'='1 -> 422 ProblemDetails) =="
 } > "$OUT/a03-inyeccion.txt"
 echo "  -> $OUT/a03-inyeccion.txt"
 
+# ============================================================
+# U4: A04, XSS y A06 (la evidencia de A01 queda disponible en
+# /tmp/sged_a01.jar; aqui se abre sesion de admin de nuevo para
+# ejercer operaciones de escritura). Debe correr ANTES de A07,
+# que agota a proposito el rate limit de la IP.
+# ============================================================
+echo "== A04: diseño inseguro (reglas de negocio/seguridad en el servidor) =="
+# Se re-autentica el admin: A01 borro /tmp/sged_admin.jar.
+curl -s -c /tmp/sged_admin.jar -X POST "$BASE/api/auth/login" \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"Admin2026!"}' > /dev/null
+{ cabecera "A04 - Insecure Design";
+  echo "-- 1. politica de contraseñas aplicada en el servidor (esperado 422) --";
+  curl -s -o /dev/null -w "POST /api/auth/registro (password corta) -> %{http_code}\n" \
+    -b /tmp/sged_admin.jar -X POST "$BASE/api/auth/registro" \
+    -H "Content-Type: application/json" \
+    -d '{"nombre":"D","apellido":"A04","cedula":"1234567890","correo":"a04.weak@sged.test","fechaNacimiento":"2000-01-01","username":"a04_weak@sged.test","password":"abc"}';
+  echo "";
+  echo "-- 2. regla de negocio: catalogos validos obligatorios (categoria inexistente -> 404) --";
+  curl --include -s -b /tmp/sged_admin.jar -X POST "$BASE/api/estudiantes" \
+    -H "Content-Type: application/json" \
+    -d '{"idPersona":999,"idCategoria":99999,"idEstadoGeneral":1,"codigoEstudiante":"A04-001","fechaIngreso":"2024-09-02","peso":60.0,"altura":1.70}' | head -12;
+  echo "";
+  echo "-- 3. credenciales duplicadas rechazadas (esperado 409) --";
+  curl -s -o /dev/null -w "POST /api/auth/registro (username ya usado) -> %{http_code}\n" \
+    -b /tmp/sged_admin.jar -X POST "$BASE/api/auth/registro" \
+    -H "Content-Type: application/json" \
+    -d '{"nombre":"Dup","apellido":"A04","cedula":"1234567891","correo":"a04.dup@sged.test","fechaNacimiento":"2000-01-01","username":"audit_a01@sged.test","password":"Passw0rd!"}';
+  echo "";
+  echo "-- nota: el modelo de amenazas y las decisiones de diseño se documentan en docs/informe-u4 (seccion 5.4). --"; \
+} > "$OUT/a04-diseno-inseguro.txt"
+echo "  -> $OUT/a04-diseno-inseguro.txt"
+
+echo "== XSS: defensa en profundidad (CSP + JSON + escape Angular) =="
+{ cabecera "XSS - Cross-Site Scripting";
+  echo "-- 1. cabecera CSP presente (default-src 'self'; frame-ancestors 'none') --";
+  curl -I -s "$BASE/api/auth/ping" \
+    | grep -iE "content-security-policy|x-frame-options|x-content-type-options";
+  echo "";
+  echo "-- 2. almacenamiento de payload (admin crea categoria con <script>) --";
+  curl -s -o /dev/null -w "POST /api/categorias (payload XSS) -> %{http_code}\n" \
+    -b /tmp/sged_admin.jar -X POST "$BASE/api/categorias" \
+    -H "Content-Type: application/json" \
+    -d '{"nombre":"<script>alert(1)</script>","edadMin":10,"edadMax":12,"descripcion":"payload xss"}';
+  echo "";
+  echo "-- 3. el payload se sirve como JSON (Content-Type application/json), no como HTML: no se interpreta --";
+  curl -s -D /tmp/sged_xss_headers.txt -o /tmp/sged_xss_body.json \
+    "$BASE/api/categorias/activas" -b /tmp/sged_admin.jar -H "Accept: application/json";
+  grep -i "^content-type" /tmp/sged_xss_headers.txt;
+  echo "  el payload viaja como dato escapable (Angular lo escapa por defecto en el SPA):";
+  grep -o "<script>alert(1)</script>" /tmp/sged_xss_body.json | head -1; \
+} > "$OUT/xss.txt"
+echo "  -> $OUT/xss.txt"
+rm -f /tmp/sged_admin.jar
+
 echo "== A05: cabeceras de seguridad =="
 { cabecera "A05 - Security Misconfiguration";
   echo "-- via HTTP directo al backend ($BASE) --";
@@ -112,6 +167,27 @@ echo "== A05: cabeceras de seguridad =="
   curl -Ik -s "https://localhost:8443/api/auth/ping"; \
 } > "$OUT/a05-cabeceras.txt"
 echo "  -> $OUT/a05-cabeceras.txt"
+
+echo "== A06: componentes vulnerables (inventario de versiones) =="
+{ cabecera "A06 - Vulnerable and Outdated Components";
+  echo "-- inventario backend (pom.xml) --";
+  grep -oE "<(artifactId|version)>[^<]+</(artifactId|version)>" backend/pom.xml \
+    | paste - - 2>/dev/null | sed 's/<[^>]*>//g' | grep -iE "spring-boot|springdoc|jjwt|lombok|postgres" | head -20;
+  echo "";
+  echo "-- inventario frontend (package.json) --";
+  grep -E "\"(@angular/|angular|express|ngrx|rxjs|zone.js)\"" frontend/package.json | head -20;
+  echo "";
+  echo "-- nota: el escaneo OWASP dependency-check requiere descargar la base NVD;";
+  echo "--   en el CI se documenta el inventario y se pinan digests de imagen (docker-compose.yml).";
+  if [ -d frontend/node_modules ] && command -v npm > /dev/null 2>&1; then
+    echo "";
+    echo "-- npm audit (frontend) --";
+    (cd frontend && npm audit --omit=dev --audit-level=high) 2>&1 | tail -20;
+  else
+    echo "-- frontend sin node_modules local: se omite npm audit en esta corrida. --";
+  fi; \
+} > "$OUT/a06-componentes.txt"
+echo "  -> $OUT/a06-componentes.txt"
 
 echo "== A07: 6 intentos fallidos -> 429 =="
 { cabecera "A07 - Identification and Authentication Failures";
