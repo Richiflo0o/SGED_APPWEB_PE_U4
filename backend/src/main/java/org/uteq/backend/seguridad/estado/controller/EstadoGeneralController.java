@@ -1,5 +1,8 @@
 package org.uteq.backend.seguridad.estado.controller;
 
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -19,12 +22,15 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/estados_generales")
 @RequiredArgsConstructor
+@Tag(name = "Estados generales", description = "Catalogo de solo lectura de estados administrativos")
 public class EstadoGeneralController {
 
     private final EstadoGeneralService estadoGeneralService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENTRENADOR', 'USER')")
+    @Operation(summary = "Listar estados generales")
+    @ApiResponse(responseCode = "200", description = "Lista de estados")
     public ResponseEntity<List<EstadoGeneralResponse>> listarTodos() {
         return ResponseEntity.ok(estadoGeneralService.listarTodos());
     }

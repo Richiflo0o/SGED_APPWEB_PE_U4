@@ -3,6 +3,10 @@ package org.uteq.backend.seguridad.auth.controller;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +49,7 @@ import java.util.Set;
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
+@Tag(name = "Autenticacion", description = "Registro, login, logout, refresh y datos de la sesion JWT")
 public class AuthController {
 
     private static final String ACCESS_COOKIE = "sged_access";
@@ -66,6 +71,12 @@ public class AuthController {
 
     @PostMapping("/registro")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Registrar usuario", description = "Crea persona + cuenta de usuario con rol USER. Solo ADMINISTRADOR.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Usuario creado"),
+            @ApiResponse(responseCode = "409", description = "Username, cedula o correo ya registrados"),
+            @ApiResponse(responseCode = "400", description = "Validacion de datos fallida")
+    })
     public ResponseEntity<SesionResponse> registro(@Valid @RequestBody RegisterRequest request) {
         if (usuarioRepository.existsByUsername(request.username())
                 || personaRepository.existsByCedulaAndActivoTrue(request.cedula())
@@ -114,6 +125,13 @@ public class AuthController {
 
     @PostMapping("/login")
     @Transactional(readOnly = true)
+    @Operation(summary = "Iniciar sesion",
+            description = "Autentica credenciales y entrega tokens en cookies HttpOnly+Secure+SameSite. Incluye rate limiting por IP (OWASP A07).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Login correcto; tokens en cookies"),
+            @ApiResponse(responseCode = "401", description = "Credenciales invalidas"),
+            @ApiResponse(responseCode = "429", description = "Demasiados intentos fallidos (IP bloqueada)")
+    })
     public ResponseEntity<SesionResponse> login(
             @Valid @RequestBody LoginRequest request,
             HttpServletRequest httpRequest,
@@ -161,6 +179,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
+    @Operation(summary = "Cerrar sesion", description = "Revoca el access token en Redis y limpia las cookies.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Sesion cerrada"),
+            @ApiResponse(responseCode = "401", description = "No autenticado")
+    })
     public ResponseEntity<Void> logout(
             @CookieValue(name = ACCESS_COOKIE, required = false) String accessToken,
             HttpServletResponse httpResponse) {
@@ -182,6 +205,11 @@ public class AuthController {
     }
 
     @PostMapping("/refresh")
+    @Operation(summary = "Renovar access token", description = "Usa el refresh token de la cookie sged_refresh.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Access token renovado"),
+            @ApiResponse(responseCode = "401", description = "Refresh token ausente o invalido")
+    })
     public ResponseEntity<Void> refresh(
             @CookieValue(name = REFRESH_COOKIE, required = false) String refreshToken,
             HttpServletResponse httpResponse) {
@@ -199,6 +227,11 @@ public class AuthController {
     }
 
     @GetMapping("/me")
+    @Operation(summary = "Datos de la sesion actual")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Datos de la sesion"),
+            @ApiResponse(responseCode = "401", description = "No autenticado")
+    })
     public ResponseEntity<SesionResponse> me() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null || !auth.isAuthenticated() || !(auth.getPrincipal() instanceof UserDetails)) {
@@ -220,6 +253,8 @@ public class AuthController {
     }
 
     @GetMapping("/ping")
+    @Operation(summary = "Ping de salud", description = "No requiere autenticacion.")
+    @ApiResponse(responseCode = "200", description = "pong")
     public ResponseEntity<String> ping() {
         return ResponseEntity.ok("pong");
     }

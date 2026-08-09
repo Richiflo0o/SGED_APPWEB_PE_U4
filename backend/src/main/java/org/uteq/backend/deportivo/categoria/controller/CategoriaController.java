@@ -1,6 +1,10 @@
 package org.uteq.backend.deportivo.categoria.controller;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,42 +27,67 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/categorias")
 @RequiredArgsConstructor
+@Tag(name = "Categorias", description = "CRUD del catalogo de categorias deportivas")
 public class CategoriaController {
 
     private final CategoriaService categoriaService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENTRENADOR', 'USER')")
+    @Operation(summary = "Listar categorias paginadas")
+    @ApiResponse(responseCode = "200", description = "Pagina de categorias")
     public ResponseEntity<Page<CategoriaResponse>> listarPaginado(Pageable pageable) {
         return ResponseEntity.ok(categoriaService.listarPaginado(pageable));
     }
 
     @GetMapping("/activas")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENTRENADOR', 'USER')")
+    @Operation(summary = "Listar categorias activas", description = "Usado por el formulario de estudiante.")
+    @ApiResponse(responseCode = "200", description = "Lista de categorias activas")
     public ResponseEntity<List<CategoriaResponse>> listarActivas() {
         return ResponseEntity.ok(categoriaService.listarTodasActivas());
     }
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENTRENADOR', 'USER')")
+    @Operation(summary = "Buscar categoria por ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Categoria encontrada"),
+            @ApiResponse(responseCode = "404", description = "Categoria no encontrada")
+    })
     public ResponseEntity<CategoriaResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(categoriaService.buscarPorId(id));
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Crear categoria", description = "Solo ADMINISTRADOR.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Categoria creada"),
+            @ApiResponse(responseCode = "400", description = "Validacion de datos fallida")
+    })
     public ResponseEntity<CategoriaResponse> crear(@Valid @RequestBody CategoriaRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED).body(categoriaService.crear(request));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Actualizar categoria", description = "Solo ADMINISTRADOR.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Categoria actualizada"),
+            @ApiResponse(responseCode = "404", description = "Categoria no encontrada")
+    })
     public ResponseEntity<CategoriaResponse> editar(@PathVariable Long id, @Valid @RequestBody CategoriaRequest request) {
         return ResponseEntity.ok(categoriaService.editar(id, request));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Eliminar categoria", description = "Solo ADMINISTRADOR.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Eliminada"),
+            @ApiResponse(responseCode = "404", description = "Categoria no encontrada")
+    })
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         categoriaService.eliminar(id);
         return ResponseEntity.noContent().build();

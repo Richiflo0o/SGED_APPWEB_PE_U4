@@ -1,6 +1,10 @@
 package org.uteq.backend.academico.estudiante.controller;
 
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -20,12 +24,20 @@ import org.uteq.backend.academico.estudiante.service.EstudianteService;
 @RestController
 @RequestMapping("/api/estudiantes")
 @RequiredArgsConstructor
+@Tag(name = "Estudiantes", description = "CRUD de estudiantes con paginacion, soft delete y conteos por categoria")
 public class EstudianteController {
 
     private final EstudianteService estudianteService;
 
     @GetMapping
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENTRENADOR', 'USER')")
+    @Operation(summary = "Listar estudiantes paginados",
+            description = "Devuelve una pagina de estudiantes ordenables. Roles: ADMINISTRADOR, ENTRENADOR, USER.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Pagina de estudiantes"),
+            @ApiResponse(responseCode = "401", description = "No autenticado"),
+            @ApiResponse(responseCode = "403", description = "Rol sin permiso")
+    })
     public ResponseEntity<EstudiantePageResponse<EstudianteResponse>> listar(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
@@ -41,12 +53,23 @@ public class EstudianteController {
 
     @GetMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENTRENADOR', 'USER')")
+    @Operation(summary = "Buscar estudiante por ID")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Estudiante encontrado"),
+            @ApiResponse(responseCode = "404", description = "Estudiante no encontrado o inactivo")
+    })
     public ResponseEntity<EstudianteResponse> buscarPorId(@PathVariable Long id) {
         return ResponseEntity.ok(estudianteService.buscarPorId(id));
     }
 
     @PostMapping
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Crear estudiante", description = "Solo ADMINISTRADOR.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Estudiante creado"),
+            @ApiResponse(responseCode = "400", description = "Validacion de datos fallida"),
+            @ApiResponse(responseCode = "403", description = "Rol sin permiso")
+    })
     public ResponseEntity<EstudianteResponse> crear(
             @Valid @RequestBody EstudianteRequest request) {
         return ResponseEntity.status(HttpStatus.CREATED)
@@ -55,6 +78,11 @@ public class EstudianteController {
 
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Actualizar estudiante", description = "Solo ADMINISTRADOR.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Estudiante actualizado"),
+            @ApiResponse(responseCode = "404", description = "Estudiante no encontrado")
+    })
     public ResponseEntity<EstudianteResponse> editar(
             @PathVariable Long id,
             @Valid @RequestBody EstudianteRequest request) {
@@ -63,6 +91,11 @@ public class EstudianteController {
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Eliminar estudiante (soft delete)", description = "Solo ADMINISTRADOR.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Eliminado"),
+            @ApiResponse(responseCode = "404", description = "Estudiante no encontrado")
+    })
     public ResponseEntity<Void> eliminar(@PathVariable Long id) {
         estudianteService.eliminar(id);
         return ResponseEntity.noContent().build();
@@ -71,12 +104,16 @@ public class EstudianteController {
     // Ajustado a Long idCategoria para coincidir con la relación BD/Service
     @GetMapping("/conteo/categoria/{idCategoria}")
     @PreAuthorize("hasAnyRole('ADMINISTRADOR', 'ENTRENADOR')")
+    @Operation(summary = "Contar estudiantes activos por categoria")
+    @ApiResponse(responseCode = "200", description = "Numero de estudiantes activos")
     public ResponseEntity<Long> contarActivos(@PathVariable Long idCategoria) {
         return ResponseEntity.ok(estudianteService.contarActivosPorCategoria(idCategoria));
     }
 
     @PostMapping("/operaciones/desactivar-categoria")
     @PreAuthorize("hasRole('ADMINISTRADOR')")
+    @Operation(summary = "Desactivar estudiantes de una categoria", description = "Soft delete masivo. Solo ADMINISTRADOR.")
+    @ApiResponse(responseCode = "200", description = "Operacion completada")
     public ResponseEntity<Void> desactivarPorCategoria(@RequestBody Long idCategoria) {
         estudianteService.desactivarPorCategoria(idCategoria);
         return ResponseEntity.ok().build();
