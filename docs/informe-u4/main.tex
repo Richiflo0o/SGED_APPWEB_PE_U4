@@ -276,6 +276,197 @@ manejo de errores ante fallos de la API externa y la evidencia de una
 petición real (salida de \texttt{curl} o captura).}
 
 % ============================================================
+\section{Consumo de Servicios Web Externos y SOAP (Bloque 5.3)}
+\label{sec:soap}
+
+Esta sección analiza el consumo de servicios web externos desde una
+perspectiva más amplia que la implementación concreta de la
+sección~\ref{sec:apiexterna}: compara el paradigma SOAP frente a REST,
+contrasta los clientes HTTP disponibles en distintos ecosistemas de
+servidor, justifica la estrategia de caché adoptada y sitúa la decisión de
+diseño de SGED dentro de las tendencias de consumo de APIs de 2025.
+
+\subsection{SOAP vs. REST: análisis técnico comparativo}
+
+SOAP (\emph{Simple Object Access Protocol}) es un protocolo basado en XML:
+cada mensaje se envuelve en un \emph{envelope} con secciones
+\texttt{Header} y \texttt{Body}, la interfaz del servicio se describe
+formalmente con WSDL (\emph{Web Services Description Language}), y el
+transporte típico es HTTP, aunque el estándar también admite SMTP o TCP
+crudo; cada operación se identifica con una cabecera \texttt{SOAPAction}.
+REST (\emph{Representational State Transfer}), en cambio, no es un
+protocolo sino un estilo arquitectónico~\cite{fielding2000}: no impone un
+formato de mensaje (JSON es hoy el de facto), la descripción de la interfaz
+es opcional (OpenAPI 3.0, ya usada por SGED en la
+sección~\ref{sec:apiexterna}), y el transporte es siempre HTTP,
+aprovechando sus verbos y códigos de estado como parte del
+contrato~\cite{bajrami2024}.
+
+\begin{center}
+\begin{tabular}{@{}lll@{}}
+\toprule
+\textbf{Criterio} & \textbf{SOAP} & \textbf{REST} \\
+\midrule
+Formato del mensaje & XML obligatorio & Cualquiera (JSON de facto) \\
+Overhead de serialización & Alto (\emph{envelope} + esquema XSD) & Bajo (JSON compacto) \\
+Tipado & Fuerte, vía WSDL/XSD & Débil, por convención (OpenAPI opcional) \\
+Interoperabilidad & Alta entre plataformas empresariales & Alta en web/móvil, JSON universal \\
+Facilidad desde JavaScript & Baja (requiere parseo XML + WS-*) & Alta (\texttt{fetch}/\texttt{JSON.parse} nativos) \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+SOAP no ha desaparecido: sigue vigente en integraciones bancarias y en
+organismos públicos que exponen contratos WSDL formales por razones de
+auditoría y compatibilidad con sistemas legados, como el propio Servicio de
+Rentas Internas (SRI) de Ecuador, cuyo esquema de comprobantes electrónicos
+(\texttt{RecepcionComprobantes}/\texttt{AutorizacionComprobantes}) se
+consume vía WSDL/SOAP. La tendencia documentada en la literatura reciente,
+sin embargo, es la migración progresiva de esos servicios legados hacia
+REST cuando la integración lo permite~\cite{chitiprolu2026}, precisamente
+porque el bajo \emph{overhead} y la interoperabilidad con clientes
+web/móviles pesan más que la rigidez de tipado que ofrecía SOAP. SGED, al
+no tener restricciones de integración legada, eligió REST para consumir
+football-data.org~\cite{footballdata}: la API externa ya expone JSON sobre
+HTTP, sin necesidad de generar un cliente a partir de un WSDL.
+
+\subsection{Clientes HTTP del lado del servidor}
+
+Todo backend que consume una API externa resuelve los mismos problemas
+—\emph{timeout}, reintentos y concurrencia— con herramientas distintas
+según el ecosistema:
+
+\begin{center}
+\begin{tabular}{@{}lllp{4.3cm}@{}}
+\toprule
+\textbf{Cliente} & \textbf{Lenguaje} & \textbf{Modelo} & \textbf{Reintentos / backoff} \\
+\midrule
+GuzzleHTTP & PHP & Síncrono, con promesas opcionales & Sin \emph{retry} nativo; requiere \texttt{guzzle-retry-middleware} \\
+HttpClient & .NET & Síncrono/asíncrono (\texttt{async}/\texttt{await}) & \texttt{Microsoft.Extensions.Http.Resilience} (Polly) \\
+RestTemplate & Java (Spring) & Síncrono, bloqueante & Sin \emph{retry} nativo; requiere \texttt{spring-retry} o bucle manual \\
+WebClient & Java (Spring, reactivo) & No bloqueante (Reactor) & \texttt{.retryWhen()} con \texttt{Retry.backoff()} nativo \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+SGED usa \texttt{RestClient} (Spring 6.1, incluido en Boot 3.2.5, sin
+dependencias nuevas), sucesor síncrono de \texttt{RestTemplate} con una API
+fluida. Al no traer una política de reintentos declarativa, esta se
+implementó a mano en \texttt{FootballDataClient}, con una regla explícita
+según el tipo de fallo: solo se reintenta ante fallos transitorios
+(\emph{timeout}, error 5xx, error de red); nunca ante \texttt{429}
+(agotaría la cuota de 10 peticiones/minuto del plan gratuito de
+football-data.org y garantizaría otro \texttt{429}), ni ante
+\texttt{401}/\texttt{403} (una clave inválida no se arregla reintentando),
+ni ante \texttt{404} (error determinista):
+
+\begin{lstlisting}[language=Java,caption={Manejo completo de errores en el consumo de la API externa (FootballDataClient.java)}]
+for (int intento = 1; intento <= props.maxIntentos(); intento++) {
+    try {
+        return footballRestClient.get()
+                .uri("/competitions/{codigo}/standings", codigoLiga)
+                .retrieve()
+                .body(StandingsExternoDto.class);
+    } catch (HttpClientErrorException.TooManyRequests e) {
+        throw new ApiExternaException(Motivo.RATE_LIMIT, HttpStatus.TOO_MANY_REQUESTS,
+                "El proveedor externo aplico limite de peticiones (plan gratuito)");
+    } catch (HttpClientErrorException.Unauthorized | HttpClientErrorException.Forbidden e) {
+        throw new ApiExternaException(Motivo.NO_AUTORIZADO, HttpStatus.BAD_GATEWAY,
+                "La clave de la API externa es invalida o no fue configurada");
+    } catch (HttpClientErrorException.NotFound e) {
+        throw new ApiExternaException(Motivo.NO_ENCONTRADO, HttpStatus.BAD_GATEWAY,
+                "El proveedor externo no tiene datos para esa liga");
+    } catch (HttpServerErrorException e) {
+        ultimoFallo = new ApiExternaException(Motivo.SERVIDOR, HttpStatus.BAD_GATEWAY, "...");
+    } catch (ResourceAccessException e) {
+        ultimoFallo = new ApiExternaException(Motivo.TIMEOUT, HttpStatus.BAD_GATEWAY, "...");
+    }
+    if (intento < props.maxIntentos()) { dormir(esperaMs); esperaMs *= 2; } // backoff 400ms -> 800ms
+}
+\end{lstlisting}
+
+Sobre concurrencia: \texttt{RestTemplate} y \texttt{RestClient} bloquean el
+hilo que atiende la petición HTTP entrante mientras esperan al proveedor
+externo, mientras que \texttt{WebClient} libera ese hilo y lo reanuda
+cuando llega la respuesta. Para el volumen de tráfico de SGED (una escuela
+deportiva, no un servicio de alta concurrencia) el modelo bloqueante es
+aceptable siempre que el \emph{timeout} esté acotado (3\,s de conexión,
+5\,s de lectura); un sistema con miles de peticiones concurrentes hacia
+proveedores externos lentos justificaría migrar a \texttt{WebClient}.
+
+\subsection{Caché de respuestas externas}
+
+Cachear una API externa no es una optimización opcional: protege contra
+tres riesgos concretos. Primero, evita superar el límite de peticiones del
+proveedor —el patrón de \emph{rate limiting} documentado por Serbout et
+al.~\cite{serbout2023} exige que el cliente absorba la mayoría de las
+lecturas repetidas para no ser bloqueado ni penalizado por el servidor.
+Segundo, reduce la latencia percibida: una lectura de Redis tarda
+milisegundos frente a los cientos de milisegundos (o segundos, con
+reintentos) de una llamada de red a un tercero. Tercero, protege contra la
+indisponibilidad del proveedor: si football-data.org cae, los datos
+servidos desde caché siguen disponibles hasta que expira el TTL.
+
+El TTL debe ajustarse al dominio del dato, no ser un valor arbitrario:
+datos meteorológicos cambian cada pocos minutos (TTL razonable: 10\,min),
+las tasas de cambio de divisas se actualizan varias veces por hora (TTL:
+1\,h), y una tabla de posiciones de una liga de fútbol solo cambia cuando
+termina una jornada de partidos, típicamente una vez por semana —es un
+dato casi estático dentro de un mismo día, por lo que SGED usa un TTL de
+24\,h. La implementación sigue el patrón \emph{cache-aside}: el servicio
+consulta primero Redis, y solo golpea la API externa en caso de \emph{miss},
+guardando el resultado con el TTL configurado:
+
+\begin{lstlisting}[language=Java,caption={Patron cache-aside con TTL de 24h (FutbolService.java)}]
+TablaPosicionesDto enCache = leerCache(clave, meta);
+if (enCache != null) {
+    meta.put("origen", "cache");
+    return ApiResponse.ok(enCache, "...", meta);            // HIT: no toca la red
+}
+try {
+    StandingsExternoDto externo = client.obtenerPosiciones(liga);
+    TablaPosicionesDto tabla = mapear(externo, liga);
+    guardarCache(clave, tabla, meta);                        // MISS: guarda con TTL 24h
+    meta.put("origen", "api");
+    return ApiResponse.ok(tabla, "...", meta);
+} catch (ApiExternaException e) {
+    meta.put("origen", "fallback");                          // proveedor caido: datos de referencia, HTTP 200
+    return ApiResponse.ok(fallbackMock(liga), "...", meta);
+}
+\end{lstlisting}
+
+Redis guarda la clave \texttt{api\_externa:standings:\{LIGA\}} con
+\texttt{EX 86400}; si Redis está caído, el servicio no falla: registra
+\texttt{meta.cache = "no disponible"} y sigue respondiendo desde la API
+externa (evidencia:
+\ruta{FutbolServiceTest.posiciones\_redisCaido\_sigueRespondiendoDesdeLaApi}).
+
+\subsection{Tendencias: Jamstack y APIs en 2025}
+
+El patrón Jamstack (JavaScript + APIs + Markup) separa la generación de las
+páginas del consumo de datos: generadores de sitios estáticos como Next.js,
+Nuxt.js o Astro producen HTML en tiempo de compilación (\emph{build time})
+y lo hidratan o complementan con llamadas a APIs en tiempo de ejecución
+(\emph{runtime}), obteniendo el rendimiento de un sitio estático con la
+frescura de datos dinámicos~\cite{markovic2022}. Es una evolución directa
+del consumo de APIs externas que documenta esta sección: si SGED expusiera
+sus posiciones deportivas como contenido público, un \emph{frontend}
+Jamstack podría pre-renderizar la tabla en \emph{build time} y revalidarla
+periódicamente contra \texttt{/api/futbol/posiciones}, delegando el mismo
+problema de caché a la capa de \emph{build}.
+
+La segunda tendencia de 2025 es la IA generativa como parte del flujo de
+desarrollo: herramientas como GitHub Copilot y el andamiaje
+(\emph{scaffolding}) inteligente de código aceleran tareas repetitivas,
+pero introducen riesgos documentados en la literatura: cuestiones de
+propiedad intelectual sobre el código generado y la responsabilidad última
+del desarrollador sobre lo que integra sin revisar~\cite{moradidakhel2023}.
+SGED no es ajeno a esta tendencia ni a sus riesgos: la
+sección~\ref{sec:ia} declara explícitamente el alcance del uso de IA en
+esta práctica, precisamente para que la evaluación no dependa de asumir
+qué se generó y qué se verificó.
+
+% ============================================================
 \section{Seguridad: auditoría OWASP (Bloque 3)}
 \label{sec:seguridad}
 
