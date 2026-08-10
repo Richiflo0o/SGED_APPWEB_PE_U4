@@ -56,6 +56,22 @@ cache:
   usuarios:
     ttl-seconds: ${CACHE_TTL_SECONDS}
 
+# --- API Externa: football-data.org (Bloque 5.1) ---
+football:
+  api:
+    base-url: ${FOOTBALL_API_BASE_URL:https://api.football-data.org/v4}
+    # Default vacio obligatorio: sin key, el endpoint degrada en runtime a
+    # datos de referencia en vez de fallar. Ademas, sin este default,
+    # BackendApplicationTests.contextLoads() no arranca porque el entorno
+    # de test no define FOOTBALL_API_KEY.
+    key: ${FOOTBALL_API_KEY:}
+    liga-defecto: ${FOOTBALL_LIGA_DEFECTO:PL}
+    timeout-connect-ms: 3000
+    timeout-read-ms: 5000
+    max-intentos: 3
+    backoff-inicial-ms: 400
+    ttl-cache-seconds: 86400
+
 springdoc:
   api-docs:
     path: /api/api-docs
