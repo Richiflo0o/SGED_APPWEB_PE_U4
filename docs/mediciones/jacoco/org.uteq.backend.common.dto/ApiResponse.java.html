@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApiResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">backend</a> &gt; <a href="index.source.html" class="el_package">org.uteq.backend.common.dto</a> &gt; <span class="el_source">ApiResponse.java</span></div><h1>ApiResponse.java</h1><pre class="source lang-java linenums">package org.uteq.backend.common.dto;
+
+import io.swagger.v3.oas.annotations.media.Schema;
+
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Sobre de respuesta estandar para integraciones con terceros (Bloque 5.1).
+ * No es especifico de futbol: cualquier controlador del PFC puede adoptarlo,
+ * por eso vive en {@code common.dto} y no en el paquete {@code futbol}.
+ *
+ * Nota de nombres: coexiste en el mismo archivo fuente que
+ * {@code io.swagger.v3.oas.annotations.responses.ApiResponse} (la anotacion
+ * que ya usan los 8 controladores existentes para documentar codigos HTTP).
+ * Son dos tipos distintos con el mismo nombre simple; donde ambos se
+ * necesiten en el mismo archivo, la anotacion de swagger se referencia por
+ * su nombre completamente calificado.
+ */
+@Schema(name = &quot;ApiResponse&quot;, description = &quot;Sobre estandar de respuesta para endpoints que integran servicios externos&quot;)
+<span class="fc" id="L21">public record ApiResponse&lt;T&gt;(</span>
+        @Schema(example = &quot;true&quot;) boolean success,
+        T data,
+        @Schema(example = &quot;Tabla de posiciones obtenida exitosamente&quot;) String message,
+        List&lt;String&gt; errors,
+        Map&lt;String, Object&gt; meta) {
+
+    public static &lt;T&gt; ApiResponse&lt;T&gt; ok(T data, String message, Map&lt;String, Object&gt; meta) {
+<span class="fc" id="L29">        return new ApiResponse&lt;&gt;(true, data, message, List.of(), meta);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FutbolController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">backend</a> &gt; <a href="index.source.html" class="el_package">org.uteq.backend.futbol.controller</a> &gt; <span class="el_source">FutbolController.java</span></div><h1>FutbolController.java</h1><pre class="source lang-java linenums">package org.uteq.backend.futbol.controller;
+
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import org.uteq.backend.futbol.dto.TablaPosicionesDto;
+import org.uteq.backend.futbol.service.FutbolService;
+
+/**
+ * Consumo de la API externa football-data.org (Bloque 5.1). Endpoint
+ * publico: expone datos deportivos de terceros sin informacion personal,
+ * el mismo criterio que ya aplica el proyecto a /api/docs y
+ * /actuator/health (ver SecurityConfig).
+ *
+ * Nota de nombres: el tipo de retorno {@code org.uteq.backend.common.dto.ApiResponse}
+ * (el sobre {success, data, message, errors, meta}) comparte nombre simple
+ * con la anotacion {@code io.swagger.v3.oas.annotations.responses.ApiResponse}
+ * que se usa para documentar codigos HTTP; por eso el tipo de retorno se
+ * referencia por su nombre completamente calificado.
+ */
+@RestController
+@RequestMapping(&quot;/api/futbol&quot;)
+@RequiredArgsConstructor
+@Tag(name = &quot;Futbol (API externa)&quot;, description = &quot;Consumo de football-data.org con cache en Redis (Bloque 5.1)&quot;)
+public class FutbolController {
+
+    private final FutbolService futbolService;
+
+    @GetMapping(&quot;/posiciones&quot;)
+    @Operation(summary = &quot;Tabla de posiciones de una liga&quot;,
+            description = &quot;Consulta football-data.org con cache-aside en Redis (TTL 24h). &quot;
+                    + &quot;Si el proveedor externo falla, responde 200 con datos de referencia &quot;
+                    + &quot;(meta.degradado = true) en vez de propagar el error.&quot;)
+    @ApiResponses({
+            @ApiResponse(responseCode = &quot;200&quot;, description = &quot;Tabla de posiciones (origen: api, cache o fallback)&quot;),
+            @ApiResponse(responseCode = &quot;400&quot;, description = &quot;Codigo de liga no soportado por el plan gratuito&quot;)
+    })
+    public ResponseEntity&lt;org.uteq.backend.common.dto.ApiResponse&lt;TablaPosicionesDto&gt;&gt; posiciones(
+            @Parameter(description = &quot;Codigo de competicion, p. ej. PL, PD, SA, BL1. Si se omite, usa la liga por defecto.&quot;)
+            @RequestParam(required = false) String liga) {
+<span class="fc" id="L49">        return ResponseEntity.ok(futbolService.posiciones(liga));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

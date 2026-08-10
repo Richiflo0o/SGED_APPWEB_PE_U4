@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApiExternaException.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">backend</a> &gt; <a href="index.source.html" class="el_package">org.uteq.backend.common.exception</a> &gt; <span class="el_source">ApiExternaException.java</span></div><h1>ApiExternaException.java</h1><pre class="source lang-java linenums">package org.uteq.backend.common.exception;
+
+import org.springframework.http.HttpStatus;
+
+/**
+ * Fallo al consumir un proveedor externo (Bloque 5.1: football-data.org).
+ * GlobalExceptionHandler ya captura {@link ApiException} y por herencia
+ * tambien esta clase, asi que no requiere un @ExceptionHandler propio.
+ * En la practica, FutbolService la atrapa antes de que llegue al handler
+ * global y degrada a una respuesta 200 con datos de referencia (fallback),
+ * el {@link Motivo} solo se registra en el log.
+ */
+public class ApiExternaException extends ApiException {
+
+<span class="fc" id="L15">    public enum Motivo {</span>
+<span class="fc" id="L16">        TIMEOUT,</span>
+<span class="fc" id="L17">        RED,</span>
+<span class="fc" id="L18">        RATE_LIMIT,</span>
+<span class="fc" id="L19">        NO_AUTORIZADO,</span>
+<span class="fc" id="L20">        NO_ENCONTRADO,</span>
+<span class="fc" id="L21">        SERVIDOR</span>
+    }
+
+    private final Motivo motivo;
+
+    public ApiExternaException(Motivo motivo, HttpStatus status, String mensaje) {
+<span class="fc" id="L27">        super(status, mensaje);</span>
+<span class="fc" id="L28">        this.motivo = motivo;</span>
+<span class="fc" id="L29">    }</span>
+
+    public Motivo getMotivo() {
+<span class="fc" id="L32">        return motivo;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

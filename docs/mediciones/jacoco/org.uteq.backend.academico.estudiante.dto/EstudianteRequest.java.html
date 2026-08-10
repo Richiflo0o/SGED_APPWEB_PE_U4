@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>EstudianteRequest.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">backend</a> &gt; <a href="index.source.html" class="el_package">org.uteq.backend.academico.estudiante.dto</a> &gt; <span class="el_source">EstudianteRequest.java</span></div><h1>EstudianteRequest.java</h1><pre class="source lang-java linenums">package org.uteq.backend.academico.estudiante.dto;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;
 import jakarta.validation.constraints.NotBlank;
@@ -10,34 +11,42 @@ import jakarta.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-<span class="fc" id="L13">public record EstudianteRequest(</span>
+@Schema(name = &quot;EstudianteRequest&quot;, description = &quot;Datos para crear o actualizar un estudiante&quot;)
+<span class="fc" id="L15">public record EstudianteRequest(</span>
 
         // --- Relación con la Persona física ya existente ---
         @NotNull(message = &quot;El ID de la persona es obligatorio&quot;)
+        @Schema(example = &quot;1&quot;, description = &quot;ID de la persona fisica ya existente&quot;)
         Long idPersona,
 
         // --- Claves Foráneas / Catálogos ---
         @NotNull(message = &quot;El ID de la categoría es obligatorio&quot;)
+        @Schema(example = &quot;1&quot;, description = &quot;ID de la categoria deportiva&quot;)
         Long idCategoria,
 
         @NotNull(message = &quot;El ID del estado general es obligatorio&quot;)
+        @Schema(example = &quot;1&quot;, description = &quot;ID del estado general&quot;)
         Long idEstadoGeneral,
 
         // --- Datos Propios del Estudiante ---
         @NotBlank(message = &quot;El código de estudiante es obligatorio&quot;)
         @Size(max = 30, message = &quot;El código de estudiante no debe superar los 30 caracteres&quot;)
+        @Schema(example = &quot;2023001234&quot;, description = &quot;Codigo unico del estudiante&quot;)
         String codigoEstudiante,
 
         @NotNull(message = &quot;La fecha de ingreso es obligatoria&quot;)
         @PastOrPresent(message = &quot;La fecha de ingreso no puede ser una fecha futura&quot;)
+        @Schema(example = &quot;2024-09-02&quot;, format = &quot;date&quot;)
         LocalDate fechaIngreso,
 
         @DecimalMin(value = &quot;0.01&quot;, message = &quot;El peso debe ser mayor a 0&quot;)
         @Digits(integer = 3, fraction = 2, message = &quot;El peso debe tener máximo 3 enteros y 2 decimales&quot;)
+        @Schema(example = &quot;62.50&quot;, description = &quot;Peso en kilogramos&quot;)
         BigDecimal peso,
 
         @DecimalMin(value = &quot;0.01&quot;, message = &quot;La altura debe ser mayor a 0&quot;)
         @Digits(integer = 3, fraction = 2, message = &quot;La altura debe tener máximo 3 enteros y 2 decimales&quot;)
+        @Schema(example = &quot;1.72&quot;, description = &quot;Altura en metros&quot;)
         BigDecimal altura
 ) {}
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
