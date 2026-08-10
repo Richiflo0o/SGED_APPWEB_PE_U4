@@ -48,6 +48,8 @@ public class SecurityConfig {
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
+                        // Datos publicos de terceros (football-data.org), sin PII (Bloque 5.1).
+                        .requestMatchers("/api/futbol/**").permitAll()
                         .requestMatchers("/api/docs", "/api/docs/**",
                                 "/api/api-docs", "/api/api-docs/**",
                                 "/api/swagger-ui/**", "/api/swagger-ui.html",
