@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FutbolService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">backend</a> &gt; <a href="index.source.html" class="el_package">org.uteq.backend.futbol.service</a> &gt; <span class="el_source">FutbolService.java</span></div><h1>FutbolService.java</h1><pre class="source lang-java linenums">package org.uteq.backend.futbol.service;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Service;
+import org.uteq.backend.common.dto.ApiResponse;
+import org.uteq.backend.common.exception.ApiExternaException;
+import org.uteq.backend.futbol.client.FootballDataClient;
+import org.uteq.backend.futbol.config.FootballApiProperties;
+import org.uteq.backend.futbol.dto.StandingDto;
+import org.uteq.backend.futbol.dto.TablaPosicionesDto;
+import org.uteq.backend.futbol.dto.externo.StandingsExternoDto;
+
+import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Consumo de la API externa football-data.org con caché cache-aside en
+ * Redis (Bloque 5.1, tarea 3). Estrategia:
+ * 1. Lee &quot;api_externa:standings:{LIGA}&quot; en Redis.
+ * 2. Hit -&gt; deserializa, responde con meta.origen = &quot;cache&quot;.
+ * 3. Miss -&gt; llama al proveedor, guarda en Redis con TTL 24h,
+ *    responde con meta.origen = &quot;api&quot;.
+ * 4. Cualquier fallo del proveedor (timeout, red, 4xx, 5xx) -&gt; responde
+ *    HTTP 200 con datos de referencia y meta.origen = &quot;fallback&quot;;
+ *    degradado = true. El motivo del fallo solo se registra en el log,
+ *    nunca se filtra al cliente.
+ * Un Redis caido no debe tumbar el endpoint: las operaciones de cache
+ * capturan DataAccessException (RedisConnectionFailureException incluida)
+ * y el servicio sigue contra la API externa con meta.cache = &quot;no disponible&quot;.
+ */
+@Service
+@RequiredArgsConstructor
+public class FutbolService {
+
+<span class="fc" id="L45">    private static final Logger log = LoggerFactory.getLogger(FutbolService.class);</span>
+
+    private static final String CACHE_PREFIX = &quot;api_externa:standings:&quot;;
+
+    // Codigos de competicion disponibles en el plan gratuito de
+    // football-data.org. Validar aqui, antes de salir a la red, evita
+    // gastar una de las 10 peticiones/minuto en un codigo inexistente y
+    // hace determinista el caso de error para Postman/tests.
+<span class="fc" id="L53">    private static final Set&lt;String&gt; LIGAS_VALIDAS = Set.of(</span>
+            &quot;PL&quot;, &quot;PD&quot;, &quot;SA&quot;, &quot;BL1&quot;, &quot;FL1&quot;, &quot;DED&quot;, &quot;PPL&quot;, &quot;ELC&quot;, &quot;BSA&quot;, &quot;CL&quot;, &quot;EC&quot;, &quot;WC&quot;);
+
+<span class="fc" id="L56">    private static final List&lt;StandingDto&gt; POSICIONES_FALLBACK = List.of(</span>
+            new StandingDto(1, &quot;Equipo de referencia A&quot;, null, 0, 0, 0, 0, 0, 0, 0, 0),
+            new StandingDto(2, &quot;Equipo de referencia B&quot;, null, 0, 0, 0, 0, 0, 0, 0, 0),
+            new StandingDto(3, &quot;Equipo de referencia C&quot;, null, 0, 0, 0, 0, 0, 0, 0, 0));
+
+    private final FootballDataClient client;
+    private final StringRedisTemplate redisTemplate;
+    private final ObjectMapper objectMapper;
+    private final FootballApiProperties props;
+
+    public ApiResponse&lt;TablaPosicionesDto&gt; posiciones(String ligaParam) {
+<span class="fc" id="L67">        String liga = normalizarLiga(ligaParam);</span>
+<span class="fc bfc" id="L68" title="All 2 branches covered.">        if (!LIGAS_VALIDAS.contains(liga)) {</span>
+<span class="fc" id="L69">            throw new IllegalArgumentException(</span>
+                    &quot;Codigo de liga no soportado: '&quot; + liga + &quot;'. Ligas disponibles: &quot; + LIGAS_VALIDAS);
+        }
+
+<span class="fc" id="L73">        String clave = CACHE_PREFIX + liga;</span>
+<span class="fc" id="L74">        Map&lt;String, Object&gt; meta = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L75">        meta.put(&quot;fuente&quot;, &quot;football-data.org&quot;);</span>
+<span class="fc" id="L76">        meta.put(&quot;ttl&quot;, &quot;24h&quot;);</span>
+<span class="fc" id="L77">        meta.put(&quot;consultadoEn&quot;, Instant.now().toString());</span>
+
+<span class="fc" id="L79">        TablaPosicionesDto enCache = leerCache(clave, meta);</span>
+<span class="fc bfc" id="L80" title="All 2 branches covered.">        if (enCache != null) {</span>
+<span class="fc" id="L81">            meta.put(&quot;origen&quot;, &quot;cache&quot;);</span>
+<span class="fc" id="L82">            meta.put(&quot;degradado&quot;, false);</span>
+<span class="fc" id="L83">            return ApiResponse.ok(enCache, &quot;Tabla de posiciones obtenida exitosamente (cache)&quot;, meta);</span>
+        }
+
+        try {
+<span class="fc" id="L87">            StandingsExternoDto externo = client.obtenerPosiciones(liga);</span>
+<span class="fc" id="L88">            TablaPosicionesDto tabla = mapear(externo, liga);</span>
+<span class="fc" id="L89">            guardarCache(clave, tabla, meta);</span>
+<span class="fc" id="L90">            meta.put(&quot;origen&quot;, &quot;api&quot;);</span>
+<span class="fc" id="L91">            meta.put(&quot;degradado&quot;, false);</span>
+<span class="fc" id="L92">            return ApiResponse.ok(tabla, &quot;Tabla de posiciones obtenida exitosamente&quot;, meta);</span>
+<span class="fc" id="L93">        } catch (ApiExternaException e) {</span>
+<span class="fc" id="L94">            log.warn(&quot;Fallo al consumir football-data.org (motivo={}, liga={}): {}&quot;,</span>
+<span class="fc" id="L95">                    e.getMotivo(), liga, e.getMessage());</span>
+<span class="fc" id="L96">            meta.put(&quot;origen&quot;, &quot;fallback&quot;);</span>
+<span class="fc" id="L97">            meta.put(&quot;degradado&quot;, true);</span>
+<span class="fc" id="L98">            return ApiResponse.ok(fallbackMock(liga),</span>
+                    &quot;No se pudo contactar al proveedor de datos; se muestran datos de referencia.&quot;, meta);
+        }
+    }
+
+    private String normalizarLiga(String ligaParam) {
+<span class="pc bpc" id="L104" title="1 of 4 branches missed.">        String liga = (ligaParam == null || ligaParam.isBlank()) ? props.ligaDefecto() : ligaParam;</span>
+<span class="fc" id="L105">        return liga.toUpperCase();</span>
+    }
+
+    private TablaPosicionesDto leerCache(String clave, Map&lt;String, Object&gt; meta) {
+        try {
+<span class="fc" id="L110">            String json = redisTemplate.opsForValue().get(clave);</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">            if (json == null) {</span>
+<span class="fc" id="L112">                return null;</span>
+            }
+<span class="fc" id="L114">            return objectMapper.readValue(json, TablaPosicionesDto.class);</span>
+<span class="fc" id="L115">        } catch (DataAccessException e) {</span>
+<span class="fc" id="L116">            log.warn(&quot;Redis no disponible al leer cache de futbol: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L117">            meta.put(&quot;cache&quot;, &quot;no disponible&quot;);</span>
+<span class="fc" id="L118">            return null;</span>
+<span class="nc" id="L119">        } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L120">            log.warn(&quot;Entrada de cache de futbol corrupta, se ignora: {}&quot;, e.getMessage());</span>
+<span class="nc" id="L121">            return null;</span>
+        }
+    }
+
+    private void guardarCache(String clave, TablaPosicionesDto tabla, Map&lt;String, Object&gt; meta) {
+        try {
+<span class="fc" id="L127">            String json = objectMapper.writeValueAsString(tabla);</span>
+<span class="fc" id="L128">            redisTemplate.opsForValue().set(clave, json, Duration.ofSeconds(props.ttlCacheSeconds()));</span>
+<span class="fc" id="L129">        } catch (DataAccessException e) {</span>
+<span class="fc" id="L130">            log.warn(&quot;Redis no disponible al escribir cache de futbol: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L131">            meta.put(&quot;cache&quot;, &quot;no disponible&quot;);</span>
+<span class="nc" id="L132">        } catch (JsonProcessingException e) {</span>
+<span class="nc" id="L133">            log.warn(&quot;No se pudo serializar la tabla de posiciones para cache: {}&quot;, e.getMessage());</span>
+<span class="fc" id="L134">        }</span>
+<span class="fc" id="L135">    }</span>
+
+    private TablaPosicionesDto mapear(StandingsExternoDto externo, String liga) {
+<span class="fc" id="L138">        List&lt;StandingDto&gt; posiciones = extraerTablaTotal(externo).stream()</span>
+<span class="fc" id="L139">                .map(this::mapearFila)</span>
+<span class="fc" id="L140">                .toList();</span>
+
+<span class="pc bpc" id="L142" title="1 of 2 branches missed.">        String competicion = externo.competition() != null ? externo.competition().name() : liga;</span>
+<span class="fc" id="L143">        String temporada = temporada(externo.season());</span>
+
+<span class="fc" id="L145">        return new TablaPosicionesDto(competicion, temporada, liga, posiciones);</span>
+    }
+
+    private List&lt;StandingsExternoDto.TeamStandingExterno&gt; extraerTablaTotal(StandingsExternoDto externo) {
+<span class="pc bpc" id="L149" title="1 of 2 branches missed.">        if (externo.standings() == null) {</span>
+<span class="nc" id="L150">            return List.of();</span>
+        }
+<span class="fc" id="L152">        return externo.standings().stream()</span>
+<span class="fc" id="L153">                .filter(grupo -&gt; &quot;TOTAL&quot;.equals(grupo.type()))</span>
+<span class="fc" id="L154">                .findFirst()</span>
+<span class="fc" id="L155">                .map(StandingsExternoDto.StandingGroupExterno::table)</span>
+<span class="fc" id="L156">                .orElse(List.of());</span>
+    }
+
+    private StandingDto mapearFila(StandingsExternoDto.TeamStandingExterno fila) {
+<span class="pc bpc" id="L160" title="1 of 2 branches missed.">        String equipo = fila.team() != null ? fila.team().name() : &quot;-&quot;;</span>
+<span class="pc bpc" id="L161" title="1 of 2 branches missed.">        String escudo = fila.team() != null ? fila.team().crest() : null;</span>
+<span class="fc" id="L162">        return new StandingDto(</span>
+<span class="fc" id="L163">                fila.position(), equipo, escudo, fila.playedGames(),</span>
+<span class="fc" id="L164">                fila.won(), fila.draw(), fila.lost(),</span>
+<span class="fc" id="L165">                fila.goalsFor(), fila.goalsAgainst(), fila.goalDifference(), fila.points());</span>
+    }
+
+    private String temporada(StandingsExternoDto.SeasonExterno season) {
+<span class="pc bpc" id="L169" title="3 of 6 branches missed.">        if (season == null || season.startDate() == null || season.endDate() == null) {</span>
+<span class="nc" id="L170">            return &quot;-&quot;;</span>
+        }
+<span class="fc" id="L172">        return anio(season.startDate()) + &quot;/&quot; + anio(season.endDate());</span>
+    }
+
+    private String anio(String fechaIso) {
+<span class="pc bpc" id="L176" title="1 of 2 branches missed.">        return fechaIso.length() &gt;= 4 ? fechaIso.substring(0, 4) : fechaIso;</span>
+    }
+
+    private TablaPosicionesDto fallbackMock(String liga) {
+<span class="fc" id="L180">        return new TablaPosicionesDto(&quot;Datos de referencia (proveedor no disponible)&quot;, &quot;-&quot;, liga, POSICIONES_FALLBACK);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

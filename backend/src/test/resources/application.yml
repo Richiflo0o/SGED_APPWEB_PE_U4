@@ -40,3 +40,14 @@ security:
 cache:
   estudiantes:
     ttl-seconds: 60
+
+football:
+  api:
+    base-url: http://localhost:9999/v4
+    key: TEST_KEY
+    liga-defecto: PL
+    timeout-connect-ms: 200
+    timeout-read-ms: 200
+    max-intentos: 2
+    backoff-inicial-ms: 1
+    ttl-cache-seconds: 86400

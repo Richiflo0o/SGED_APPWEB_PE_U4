@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StandingsExternoDto.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">backend</a> &gt; <a href="index.source.html" class="el_package">org.uteq.backend.futbol.dto.externo</a> &gt; <span class="el_source">StandingsExternoDto.java</span></div><h1>StandingsExternoDto.java</h1><pre class="source lang-java linenums">package org.uteq.backend.futbol.dto.externo;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+
+import java.util.List;
+
+/**
+ * Mapeo parcial de la respuesta real de
+ * {@code GET /v4/competitions/{code}/standings} de football-data.org.
+ * Cada nivel lleva {@code ignoreUnknown = true} porque la respuesta real
+ * trae decenas de campos que no se usan (filters, area, form, group...);
+ * sin esto Jackson lanza UnrecognizedPropertyException.
+ */
+@JsonIgnoreProperties(ignoreUnknown = true)
+<span class="fc" id="L15">public record StandingsExternoDto(</span>
+        CompetitionExterno competition,
+        SeasonExterno season,
+        List&lt;StandingGroupExterno&gt; standings) {
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+<span class="fc" id="L21">    public record CompetitionExterno(String name, String code) {</span>
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+<span class="fc" id="L25">    public record SeasonExterno(String startDate, String endDate) {</span>
+    }
+
+    /**
+     * El JSON real anida standings[].table[], y standings[] trae varias
+     * entradas por &quot;type&quot; (TOTAL, HOME, AWAY): hay que filtrar por
+     * type == &quot;TOTAL&quot;, nunca asumir el indice 0.
+     */
+    @JsonIgnoreProperties(ignoreUnknown = true)
+<span class="fc" id="L34">    public record StandingGroupExterno(</span>
+            String type,
+            List&lt;TeamStandingExterno&gt; table) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+<span class="fc" id="L40">    public record TeamStandingExterno(</span>
+            int position,
+            TeamExterno team,
+            int playedGames,
+            int won,
+            int draw,
+            int lost,
+            int points,
+            int goalsFor,
+            int goalsAgainst,
+            int goalDifference) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+<span class="fc" id="L54">    public record TeamExterno(String name, String crest) {</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

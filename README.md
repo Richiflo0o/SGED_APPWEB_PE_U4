@@ -69,8 +69,8 @@ En menos de dos minutos:
 | Frontend (HTTPS, recomendado) | https://localhost:8443 |
 | Frontend (HTTP, sin cookie de sesion) | http://localhost:4200 |
 | API REST | http://localhost:8080/api |
-| OpenAPI 3.0 | http://localhost:8080/api/docs |
-| Swagger UI | http://localhost:8080/api/swagger-ui.html |
+| OpenAPI 3.0 (JSON) | http://localhost:8080/api/api-docs |
+| Swagger UI | http://localhost:8080/api/docs |
 
 El certificado TLS de `https://localhost:8443` es autofirmado (generado en
 build, solo para desarrollo/evaluacion) — el navegador va a mostrar una
@@ -110,6 +110,11 @@ mediciones, trazabilidad, ética), `k6/`, `scripts/`, `.github/workflows/`.
   genera de aquí: existe fuente versionada y es reproducible, a diferencia
   de un PDF suelto sin `.tex`/`.docx`, que no sería evidencia verificable
   (Bloque 0 / P4).
+* **Informe de la Práctica Experimental Unidad IV:**
+  [`docs/informe-u4/main.pdf`](docs/informe-u4/main.pdf) — fuente en
+  [`docs/informe-u4/main.tex`](docs/informe-u4/main.tex) +
+  [`docs/informe-u4/referencias.bib`](docs/informe-u4/referencias.bib),
+  compilable igual que el anterior.
 * Mediciones crudas: `docs/mediciones/` (perf, sec, sus, lighthouse, jacoco)
 * Matriz de trazabilidad: `docs/trazabilidad/matriz.csv`
 * Catálogo de procedimientos: `docs/basedatos/CATALOGO-SP.md`

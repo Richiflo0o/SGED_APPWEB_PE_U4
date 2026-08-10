@@ -1,0 +1,24 @@
+# Evidencia OWASP A04 - Insecure Design
+# Fecha: 2026-08-09T00:05:46Z | Commit: 40d3067 | curl: curl 8.5.0 (x86_64-pc-linux-gnu) libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3 brotli/1.1.0 zstd/1.5.5 libidn2/2.3.7 libpsl/0.21.2 (+libidn2/2.3.7) libssh/0.10.6/openssl/zlib nghttp2/1.59.0 librtmp/2.3 OpenLDAP/2.6.10
+#
+-- 1. politica de contraseñas aplicada en el servidor (esperado 422) --
+POST /api/auth/registro (password corta) -> 422
+
+-- 2. regla de negocio: catalogos validos obligatorios (categoria inexistente -> 404) --
+HTTP/1.1 404 
+Vary: Origin
+Vary: Access-Control-Request-Method
+Vary: Access-Control-Request-Headers
+X-Content-Type-Options: nosniff
+X-XSS-Protection: 0
+Cache-Control: no-cache, no-store, max-age=0, must-revalidate
+Pragma: no-cache
+Expires: 0
+X-Frame-Options: DENY
+Content-Security-Policy: default-src 'self'; frame-ancestors 'none'
+Content-Type: application/problem+json
+
+-- 3. credenciales duplicadas rechazadas (esperado 409) --
+POST /api/auth/registro (username ya usado) -> 409
+
+-- nota: el modelo de amenazas y las decisiones de diseño se documentan en docs/informe-u4 (seccion 5.4). --

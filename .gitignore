@@ -38,3 +38,11 @@ docs/informe/p1.log
 docs/informe/p2.log
 docs/informe/p3.log
 docs/informe/bib.log
+
+# LaTeX (docs/informe-u4/) - binarios generados; las fuentes .tex/.bib SI se versionan
+docs/informe-u4/*.aux
+docs/informe-u4/*.log
+docs/informe-u4/*.out
+docs/informe-u4/*.toc
+docs/informe-u4/*.bbl
+docs/informe-u4/*.blg

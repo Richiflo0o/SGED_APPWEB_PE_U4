@@ -1,0 +1,34 @@
+# Evidencia OWASP A06 - Vulnerable and Outdated Components
+# Fecha: 2026-08-09T00:05:46Z | Commit: 40d3067 | curl: curl 8.5.0 (x86_64-pc-linux-gnu) libcurl/8.5.0 OpenSSL/3.0.13 zlib/1.3 brotli/1.1.0 zstd/1.5.5 libidn2/2.3.7 libpsl/0.21.2 (+libidn2/2.3.7) libssh/0.10.6/openssl/zlib nghttp2/1.59.0 librtmp/2.3 OpenLDAP/2.6.10
+#
+-- Spring Boot (parent) --
+3.2.5
+
+-- dependencias con version explicita (pom.xml) --
+  <artifactId>spring-boot-starter-parent</artifactId> -> <version>3.2.5</version>
+  <artifactId>backend</artifactId> -> <version>0.0.1-SNAPSHOT</version>
+  <artifactId>flyway-database-postgresql</artifactId> -> <version>10.12.0</version>
+  <artifactId>jjwt-api</artifactId> -> <version>0.12.5</version>
+  <artifactId>jjwt-impl</artifactId> -> <version>0.12.5</version>
+  <artifactId>jjwt-jackson</artifactId> -> <version>0.12.5</version>
+  <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId> -> <version>2.3.0</version>
+  <artifactId>lombok</artifactId> -> <version>1.18.38</version>
+  <artifactId>lombok</artifactId> -> <version>1.18.38</version>
+  <artifactId>jacoco-maven-plugin</artifactId> -> <version>0.8.12</version>
+
+-- frontend (package.json) --
+    "@angular/common": "^21.2.0",
+    "@angular/compiler": "^21.2.0",
+    "@angular/core": "^21.2.0",
+    "@angular/forms": "^21.2.0",
+    "@angular/platform-browser": "^21.2.0",
+    "@angular/router": "^21.2.0",
+    "rxjs": "~7.8.0",
+    "@angular/build": "^21.2.5",
+    "@angular/cli": "^21.2.5",
+    "@angular/compiler-cli": "^21.2.0",
+    "typescript": "~5.9.2",
+
+-- nota: el escaneo OWASP dependency-check requiere descargar la base NVD;
+--   en el CI se documenta el inventario y se pinan digests de imagen (docker-compose.yml).
+-- frontend sin node_modules local: se omite npm audit en esta corrida. --

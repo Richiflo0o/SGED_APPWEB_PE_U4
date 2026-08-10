@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="es"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>FootballApiConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">backend</a> &gt; <a href="index.source.html" class="el_package">org.uteq.backend.futbol.config</a> &gt; <span class="el_source">FootballApiConfig.java</span></div><h1>FootballApiConfig.java</h1><pre class="source lang-java linenums">package org.uteq.backend.futbol.config;
+
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.web.client.RestClient;
+
+/**
+ * Cliente HTTP hacia football-data.org (Bloque 5.1, tarea 1: timeouts).
+ * Los timeouts no se configuran en el propio RestClient: requieren un
+ * ClientHttpRequestFactory. RestClient viene incluido en Spring 6.1 dentro
+ * de Boot 3.2.5, no hace falta agregar dependencias al pom.xml.
+ */
+@Configuration
+@EnableConfigurationProperties(FootballApiProperties.class)
+<span class="fc" id="L17">public class FootballApiConfig {</span>
+
+    @Bean
+    public RestClient footballRestClient(FootballApiProperties props) {
+<span class="fc" id="L21">        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();</span>
+<span class="fc" id="L22">        factory.setConnectTimeout(props.timeoutConnectMs());</span>
+<span class="fc" id="L23">        factory.setReadTimeout(props.timeoutReadMs());</span>
+
+<span class="fc" id="L25">        return RestClient.builder()</span>
+<span class="fc" id="L26">                .baseUrl(props.baseUrl())</span>
+<span class="fc" id="L27">                .requestFactory(factory)</span>
+<span class="fc" id="L28">                .defaultHeader(&quot;X-Auth-Token&quot;, props.key())</span>
+<span class="fc" id="L29">                .build();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

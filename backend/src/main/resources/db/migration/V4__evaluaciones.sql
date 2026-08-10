@@ -48,7 +48,7 @@ FOR EACH ROW EXECUTE FUNCTION deportivo.set_actualizado_en();
 CREATE TABLE IF NOT EXISTS deportivo.detalle_evaluacion (
     id_detalle BIGSERIAL PRIMARY KEY,
     id_evaluacion BIGINT NOT NULL REFERENCES deportivo.evaluaciones_diarias(id_evaluacion) ON DELETE CASCADE,
-    id_estudiante BIGINT NOT NULL REFERENCES seguridad.estudiantes(id_estudiante),
+    id_estudiante BIGINT NOT NULL REFERENCES academico.estudiantes(id_estudiante),
     id_criterio BIGINT NOT NULL REFERENCES deportivo.criterios_evaluacion(id_criterio),
     id_posicion_jugada BIGINT REFERENCES deportivo.posiciones(id_posicion),
     puntaje NUMERIC(4,1) NOT NULL CHECK (puntaje >= 0),
@@ -68,7 +68,7 @@ FOR EACH ROW EXECUTE FUNCTION deportivo.set_actualizado_en();
 CREATE TABLE IF NOT EXISTS deportivo.observaciones_estudiante (
     id_observacion BIGSERIAL PRIMARY KEY,
     id_evaluacion BIGINT NOT NULL REFERENCES deportivo.evaluaciones_diarias(id_evaluacion) ON DELETE CASCADE,
-    id_estudiante BIGINT NOT NULL REFERENCES seguridad.estudiantes(id_estudiante),
+    id_estudiante BIGINT NOT NULL REFERENCES academico.estudiantes(id_estudiante),
     id_entrenador BIGINT NOT NULL REFERENCES deportivo.entrenadores(id_entrenador),
     texto TEXT NOT NULL,
     creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
