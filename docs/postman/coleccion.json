@@ -630,6 +630,30 @@
           }
         }
       ]
+    },
+    {
+      "name": "05 API externa",
+      "item": [
+        {
+          "name": "Posiciones Premier League (200, cache Redis)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/futbol/posiciones?liga=PL",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "futbol",
+                "posiciones?liga=PL"
+              ]
+            },
+            "description": "Consume football-data.org con cache-aside en Redis (TTL 24h, Bloque 5.1). meta.origen distingue si la respuesta vino de la API, de la cache o de datos de referencia (fallback ante timeout/4xx/5xx del proveedor)."
+          }
+        }
+      ]
     }
   ]
 }
