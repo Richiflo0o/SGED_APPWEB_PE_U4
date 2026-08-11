@@ -1,5 +1,4 @@
 # Ejemplo SOAP vs REST
-
 Comparación entre una llamada a un
 servicio **SOAP** público real y su equivalente conceptual **REST** dentro
 de este proyecto (SGED).
