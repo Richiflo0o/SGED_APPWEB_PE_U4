@@ -1,6 +1,6 @@
 # Ejemplo SOAP vs REST
 
-Bloque B (Frontend + mediciones) — comparación entre una llamada a un
+Comparación entre una llamada a un
 servicio **SOAP** público real y su equivalente conceptual **REST** dentro
 de este proyecto (SGED).
 
@@ -63,10 +63,25 @@ curl -s -X POST "https://www.dataaccess.com/webservicesserver/NumberConversion.w
 
 Debería devolverte un XML con `<NumberToWordsResult>` conteniendo la
 representación en palabras de "25" (en inglés, ya que es un servicio
-estadounidense). Pega esa salida real aquí abajo, reemplazando este
-párrafo, antes de entregar el informe.
+estadounidense).
 
-**[PENDIENTE: pegar aquí la respuesta XML real obtenida con el curl de arriba]**
+**Respuesta real capturada (10 de agosto de 2026):**
+
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+  <soap:Body>
+    <m:NumberToWordsResponse xmlns:m="http://www.dataaccess.com/webservicesserver/">
+      <m:NumberToWordsResult>twenty five </m:NumberToWordsResult>
+    </m:NumberToWordsResponse>
+  </soap:Body>
+</soap:Envelope>
+```
+
+Nótese que el servidor usa el prefijo de namespace `m:` en la respuesta en
+vez del `soap:` genérico usado en la petición —detalle típico de SOAP: el
+prefijo es arbitrario, lo que importa es la URI del namespace
+(`http://www.dataaccess.com/webservicesserver/`), no el prefijo en sí.
 
 ## Endpoint REST equivalente del proyecto (PFC)
 
