@@ -8,7 +8,7 @@ REM Base de datos: Flyway crea el esquema solo al arrancar (V1..V6 en
 REM backend/src/main/resources/db/migration/). Solo falta correr
 REM db/seed.sql a mano UNA VEZ para los datos de ejemplo (admin, etc).
 set DB_URL=jdbc:postgresql://localhost:5432/sged_db
-set FLYWAY_ENABLED=true
+set FLYWAY_ENABLED=false
 
 REM Redis (Memurai o WSL corriendo en localhost:6379)
 set REDIS_HOST=localhost
