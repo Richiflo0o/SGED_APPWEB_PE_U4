@@ -47,7 +47,7 @@
   urlcolor=uteqverde,
   citecolor=uteqverde,
   pdftitle={SGED - Informe de la Practica Experimental Unidad IV},
-  pdfauthor={Velez Lopez Ricardo Elias, Integrante A, Integrante B}
+  pdfauthor={Velez Lopez Ricardo Elias, Figueroa Morales Bryan Javier, Romero Mendez Bryam Steven}
 }
 
 \pagestyle{fancy}
@@ -264,16 +264,118 @@ manual de la API, y el atributo de calidad de la documentación se mapea en
 % ============================================================
 \section{Consumo de API externa con caché Redis (Bloque 5.1)}
 \label{sec:apiexterna}
-\porintegrante{Integrante A. Sección reservada.}
 
 Esta sección documenta la integración de la API externa de datos de fútbol
-(\texttt{football-data.org}) consumida por SGED, con la estrategia de caché
-en Redis para limitar la cantidad de llamadas y el tiempo de respuesta.
+football-data.org~\cite{footballdata} consumida por SGED, con la estrategia
+de caché en Redis para limitar la cantidad de llamadas y el tiempo de
+respuesta. El análisis comparativo de SOAP frente a REST, de clientes HTTP
+y de la justificación general del patrón de caché se desarrolla en la
+sección~\ref{sec:soap}; esta sección se centra en el contrato del
+\emph{endpoint}, la implementación real y la evidencia de una petición
+contra el sistema levantado.
 
-\porintegrante{Integrante A: describir aquí el \emph{endpoint} consumido, el
-recurso que resuelve en SGED, el TTL de 24\,h configurado en Redis, el
-manejo de errores ante fallos de la API externa y la evidencia de una
-petición real (salida de \texttt{curl} o captura).}
+\subsection{Endpoint y contrato}
+
+\texttt{GET /api/futbol/posiciones?liga=\{codigo\}} resuelve la tabla de
+posiciones de una liga de fútbol. Es público
+(\texttt{SecurityConfig.permitAll} sobre \texttt{/api/futbol/**}): son
+datos deportivos de terceros sin información personal, el mismo criterio
+que el proyecto ya aplica a \texttt{/api/docs} y
+\texttt{/actuator/health}. La respuesta sigue el sobre
+\texttt{ApiResponse<TablaPosicionesDto>} \{\texttt{success}, \texttt{data},
+\texttt{message}, \texttt{errors}, \texttt{meta}\}, con
+\texttt{meta.origen} $\in$ \{\texttt{api}, \texttt{cache},
+\texttt{fallback}\} para poder distinguir de dónde vino cada respuesta.
+
+\subsection{Estrategia de caché (\emph{cache-aside}, TTL 24\,h)}
+
+La caché es manual, con \texttt{StringRedisTemplate} y un
+\texttt{ObjectMapper} (no \texttt{@Cacheable}, para que el patrón sea
+explícito y demostrable), sobre la clave
+\texttt{api\_externa:standings:\{LIGA\}} con TTL de 86400\,s (24\,h,
+justificado en la sección~\ref{sec:soap} frente a otros dominios de
+datos):
+
+\begin{lstlisting}[language=Java,caption={Lectura y escritura de la cache (FutbolService.java)}]
+private TablaPosicionesDto leerCache(String clave, Map<String, Object> meta) {
+    try {
+        String json = redisTemplate.opsForValue().get(clave);
+        if (json == null) return null;
+        return objectMapper.readValue(json, TablaPosicionesDto.class);
+    } catch (DataAccessException e) {
+        meta.put("cache", "no disponible");   // Redis caido: sigue contra la API
+        return null;
+    } catch (JsonProcessingException e) {
+        return null;                           // entrada corrupta: se ignora
+    }
+}
+
+private void guardarCache(String clave, TablaPosicionesDto tabla, Map<String, Object> meta) {
+    try {
+        String json = objectMapper.writeValueAsString(tabla);
+        redisTemplate.opsForValue().set(clave, json, Duration.ofSeconds(props.ttlCacheSeconds()));
+    } catch (DataAccessException e) {
+        meta.put("cache", "no disponible");
+    } catch (JsonProcessingException e) { /* no se pudo serializar */ }
+}
+\end{lstlisting}
+
+\subsection{Manejo de errores ante fallos de la API externa}
+
+La política de reintentos y la clasificación por tipo de fallo se detallan
+en la sección~\ref{sec:soap}. En síntesis: cualquier fallo del proveedor
+(\emph{timeout}, 4xx, 5xx) hace que \texttt{FutbolService} degrade a datos
+de referencia con \texttt{HTTP 200}, \texttt{meta.origen = "fallback"} y
+\texttt{meta.degradado = true}, en vez de propagar el error al cliente. El
+\texttt{Motivo} interno (\texttt{TIMEOUT}, \texttt{RATE\_LIMIT},
+\texttt{NO\_AUTORIZADO}, \texttt{NO\_ENCONTRADO}, \texttt{SERVIDOR}) se
+registra únicamente en el log (\texttt{WARN}), nunca se filtra al cliente.
+Un código de liga fuera del catálogo del plan gratuito se rechaza con
+\texttt{400} antes de tocar la red, para no gastar cuota en un parámetro
+inválido del cliente.
+
+\subsection{Evidencia de una petición real}
+\label{sec:apiexterna-evidencia}
+
+La evidencia se generó ejecutando la carpeta \emph{05 API externa} de
+\ruta{docs/postman/coleccion.json} con \texttt{newman} (Postman CLI)
+contra el sistema real levantado con \texttt{docker compose} (Postgres,
+Redis y el backend), con una \texttt{FOOTBALL\_API\_KEY} real configurada
+en \texttt{.env}. Evidencia cruda completa en
+\ruta{docs/mediciones/api-externa/evidencia-postman.txt}.
+
+\textbf{1. Cache \emph{miss}} (clave de Redis recién borrada, primera
+petición) --- \texttt{GET /api/futbol/posiciones?liga=PL}, \texttt{200 OK}
+en \textbf{653\,ms} (llamada real de red a football-data.org), datos
+reales de la Premier League 2026/2027 (\emph{Arsenal FC}, 85\,pts en la
+primera posición), \texttt{meta.origen = "api"}.
+
+\textbf{2. Cache \emph{hit}} (misma petición, sin borrar la clave) ---
+\texttt{200 OK} en \textbf{54\,ms}, $\sim$12$\times$ más rápido, sin tocar
+la red, \texttt{meta.origen = "cache"}.
+
+\textbf{3. TTL confirmado directo en Redis}:
+
+\begin{lstlisting}[language=bash,caption={Confirmacion del TTL en Redis (evidencia real)}]
+$ docker exec sged_redis redis-cli TTL "api_externa:standings:PL"
+86380
+\end{lstlisting}
+
+(86400\,s = 24\,h configuradas en \texttt{football.api.ttl-cache-seconds};
+86380\,s se leyó a los pocos segundos de escribirse la clave, confirmando
+la ventana completa).
+
+\textbf{4. Liga no soportada} (validación antes de tocar la red, esperado
+\texttt{400}):
+
+\begin{lstlisting}[language=bash,caption={Validacion de liga invalida (evidencia real)}]
+$ curl -s -w "\nHTTP_STATUS:%{http_code}\n" \
+    "http://localhost:8090/api/futbol/posiciones?liga=XXXXX"
+{"type":"https://sged.uteq.edu.ec/errores/ReglaDeNegocio","title":"Bad Request",
+ "status":400,"detail":"Codigo de liga no soportado: 'XXXXX'. ...",
+ "instance":"/api/futbol/posiciones", ...}
+HTTP_STATUS:400
+\end{lstlisting}
 
 % ============================================================
 \section{Consumo de Servicios Web Externos y SOAP (Bloque 5.3)}
