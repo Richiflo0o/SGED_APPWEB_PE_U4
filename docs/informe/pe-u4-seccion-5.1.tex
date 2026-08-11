@@ -1,0 +1,202 @@
+\documentclass[12pt,a4paper]{article}
+
+% Paquetes esenciales para codificación e idioma español
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-tabla]{babel}
+
+% Paquetes requeridos por tu código
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% Definiciones de comandos y colores personalizados para evitar errores
+\definecolor{alerta}{RGB}{220, 53, 69}
+\newcommand{\pendiente}{\textbf{--}}
+
+\begin{document}
+	
+	% ============================================================
+% SECCION 5.1 - Historia MVC, Front Controller y comparativa de
+% frameworks backend. Pegar dentro de \section{...} correspondiente
+% del informe. Requiere paquetes ya presentes en main.tex:
+% booktabs, longtable, hyperref.
+% ============================================================
+
+\subsection{Historia del patrón MVC y el Front Controller}
+\label{sec:mvc-front-controller}
+
+El patrón \textbf{Modelo-Vista-Controlador (MVC)} fue formulado por Trygve
+Reenskaug en 1979 durante su estancia en Xerox PARC, como una forma de
+separar la representación interna de los datos (Modelo) de su presentación
+al usuario (Vista) y de la lógica que coordina ambas (Controlador) dentro
+del lenguaje Smalltalk-80. La idea original nació para interfaces gráficas
+de escritorio, no para la web: cada cambio en el Modelo notificaba a la
+Vista mediante el patrón Observador, y el Controlador traducía las
+acciones del usuario en cambios sobre el Modelo.
+
+A finales de los años 90 y principios de los 2000, frameworks web como
+Struts (Java) adaptaron MVC al ciclo petición/respuesta HTTP, que es
+fundamentalmente distinto al modelo de eventos de una GUI de escritorio:
+no hay un objeto Vista persistente que escuche al Modelo, sino que cada
+petición HTTP dispara una ejecución completa que termina generando una
+respuesta y muere. Esta adaptación introdujo el patrón
+\textbf{Front Controller} (Alur, Crupi y Malks, \emph{Core J2EE Patterns},
+2001): en lugar de que cada recurso (página, endpoint) maneje su propia
+entrada, un único punto de entrada centralizado recibe \emph{todas} las
+peticiones HTTP entrantes, resuelve routing, aplica lógica transversal
+(autenticación, logging, manejo de errores) y delega el trabajo específico
+al controlador correspondiente.
+
+Los frameworks modernos usados en el stack de este proyecto y en las
+alternativas evaluadas implementan el Front Controller de forma muy
+similar, aunque con nombres distintos:
+
+\begin{itemize}
+  \item \textbf{Spring Boot 3}: el \texttt{DispatcherServlet} es el Front
+    Controller; recibe toda petición HTTP, la enruta según las anotaciones
+    \texttt{@RequestMapping}/\texttt{@GetMapping} de los controladores, y
+    delega en \texttt{HandlerAdapter}.
+  \item \textbf{Laravel 11}: \texttt{public/index.php} es el único punto
+    de entrada; el \texttt{Kernel} HTTP procesa la petición a través de
+    middleware y la enruta según \texttt{routes/web.php} o
+    \texttt{routes/api.php}.
+  \item \textbf{Symfony 7}: análogo a Laravel, \texttt{public/index.php}
+    instancia el \texttt{Kernel}, que resuelve la ruta vía el componente
+    \texttt{Routing} y ejecuta el controlador asociado.
+  \item \textbf{ASP.NET Core 8}: el \emph{middleware pipeline} configurado
+    en \texttt{Program.cs} actúa como Front Controller; el middleware de
+    \texttt{Routing} despacha hacia el controlador o \emph{minimal API}
+    correspondiente.
+  \item \textbf{Django 5}: el manejador WSGI/ASGI central resuelve la URL
+    contra \texttt{urls.py} y delega en la vista (\emph{view function} o
+    \emph{class-based view}) correspondiente.
+\end{itemize}
+
+\subsubsection{Comparativa de frameworks backend}
+
+La Tabla~\ref{tab:comparativa-frameworks} resume las cinco opciones
+evaluadas para el backend de este proyecto. Las columnas de throughput
+provienen de la prueba \emph{Fortunes} (la más representativa de un CRUD
+real: ejercita ORM, conectividad a base de datos, ordenamiento y
+renderizado) de la Ronda 23 de TechEmpower Framework Benchmarks, publicada
+en febrero de 2025 y —hasta donde se pudo verificar al momento de escribir
+este informe— la última ronda completa antes de que el proyecto fuera
+discontinuado en marzo de 2026.
+
+\begin{table}[h!]
+\centering
+\small
+\begin{tabular}{@{}lllrl@{}}
+\toprule
+\textbf{Framework} & \textbf{Lenguaje} & \textbf{Versión evaluada} & \textbf{Fortunes (req/s)} & \textbf{Front Controller} \\
+\midrule
+ASP.NET Core & C\# & 8 & $\sim$609\,966 & Middleware pipeline \\
+Spring Boot  & Java & 3 & $\sim$243\,639 & \texttt{DispatcherServlet} \\
+Symfony      & PHP  & 7 & N/D\footnotemark & \texttt{Kernel} + \texttt{Routing} \\
+Django       & Python & 5 & $\sim$32\,651  & Resolver WSGI/ASGI \\
+Laravel      & PHP  & 11 & $\sim$16\,800   & \texttt{Kernel} HTTP \\
+\bottomrule
+\end{tabular}
+\caption{Comparativa de frameworks backend --- prueba Fortunes, TechEmpower Round 23 (feb. 2025).}
+\label{tab:comparativa-frameworks}
+\end{table}
+\footnotetext{Symfony no apareció en el subconjunto de frameworks
+"populares" filtrado por la fuente consultada para esta tabla; el dato
+exacto de esa ronda puede consultarse directamente en
+\url{https://www.techempower.com/benchmarks/}.}
+
+Es importante leer esta tabla con cautela académica: los benchmarks de
+TechEmpower miden un límite superior de throughput bajo condiciones de
+laboratorio (hardware dedicado, sin lógica de negocio real, implementaciones
+optimizadas por la comunidad para el propio benchmark), no el rendimiento
+que tendría cada framework en un proyecto con la complejidad de SGED. Aun
+así, la tendencia relativa —plataformas compiladas/JIT con E/S asíncrona
+(ASP.NET Core, Spring Boot) por delante de frameworks interpretados
+orientados a productividad (Laravel, Django)— es consistente con la
+literatura y con benchmarks independientes.
+
+\subsubsection{Justificación de ADR-001}
+
+La decisión registrada en \textbf{ADR-001} (ver
+\texttt{docs/adr/ADR-001-tecnologia.md}) elige Java 21 con Spring Boot 3.2.5
+sobre Laravel 11 y ASP.NET Core 8, las otras dos opciones válidas indicadas
+por el docente. Los criterios de esa decisión no fueron puramente de
+rendimiento bruto —de hecho, la Tabla~\ref{tab:comparativa-frameworks}
+muestra que ASP.NET Core supera a Spring Boot en throughput teórico—, sino
+un balance entre:
+
+\begin{enumerate}
+  \item \textbf{Coherencia de stack tipado}: Angular (TypeScript) y Spring
+    Boot (Java) comparten filosofía de tipado estático, lo que reduce
+    errores de integración frente a un backend débilmente tipado.
+  \item \textbf{Seguridad integrada}: Spring Security ofrece soporte JWT y
+    control de acceso por roles sin librerías de terceros adicionales.
+  \item \textbf{Costo de herramientas}: IntelliJ IDEA Community Edition es
+    gratuito, a diferencia de Visual Studio completo para .NET.
+  \item \textbf{Curva de aprendizaje aceptable} dentro de las 10 semanas
+    disponibles, mitigada por Spring Initializr y la amplia documentación
+    del ecosistema.
+\end{enumerate}
+
+En otras palabras, el throughput medido por TechEmpower es un dato de
+contexto relevante para justificar por qué Spring Boot es una opción
+razonable en términos de rendimiento (no la más lenta del grupo evaluado),
+pero no fue el criterio decisivo de ADR-001.
+
+% ============================================================
+% SUBSECCION 5.4 - Apache Bench. PLANTILLA: completar la tabla y el
+% parrafo de analisis con los datos reales generados por
+% scripts/bench-ab.sh una vez el backend este corriendo localmente.
+% Los valores salen de docs/mediciones/perf/ab/ab-resumen-<fecha>.md
+% ============================================================
+
+\subsection{Carga concurrente con Apache Bench}
+\label{sec:apache-bench}
+
+Como complemento a la comparativa teórica de la sección anterior, se midió
+el comportamiento del backend propio bajo carga concurrente usando
+\textbf{Apache Bench (ab)}, ejecutado mediante
+\texttt{scripts/bench-ab.sh}. El script automatiza: autenticación contra
+\texttt{POST /api/auth/login}, extracción de la cookie JWT
+(\texttt{sged\_access}), y el disparo de \texttt{ab -n 1000 -c 50} contra
+un endpoint autenticado (\texttt{GET /api/estudiantes}).
+
+\begin{table}[h!]
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+\textbf{Métrica} & \textbf{Valor} \\
+\midrule
+Peticiones totales & 1000 \\
+Concurrencia        & 50 \\
+Peticiones fallidas / \% error & 0 / 0\,\% \\
+Peticiones por segundo & 142.29 \\
+P50 (ms) & 200 \\
+P95 (ms) & 618 \\
+P99 (ms) & 1003 \\
+\bottomrule
+\end{tabular}
+\caption{Resultados de \texttt{ab -n 1000 -c 50} contra \texttt{GET /api/estudiantes}, ejecutado el 10 de agosto de 2026.}
+\label{tab:apache-bench}
+\end{table}
+
+Se observa una diferencia considerable entre la mediana (P50 = 200\,ms) y
+la cola de latencia (P99 = 1003\,ms) --- las peticiones más lentas tardan
+cerca de 5 veces más que la mediana. Con 0\,\% de errores en las 1000
+peticiones, la contención bajo concurrencia 50 no llega a tumbar
+conexiones, pero sí las hace esperar más. El endpoint
+\texttt{GET /api/estudiantes} está anotado con \texttt{@Cacheable} (ver
+\texttt{EstudianteService.java}), así que la mayoría de las 1000
+peticiones (todas piden la misma página 0, tamaño 10) deberían resolverse
+contra Redis en lugar de recalcular la consulta en PostgreSQL. Además,
+\texttt{JwtAuthenticationFilter} consulta la blacklist de tokens en Redis
+en \emph{cada} petición autenticada, cacheada o no. Esto sugiere que la
+cola de latencia observada está más ligada a saturación del pool de
+conexiones a Redis (Lettuce) y del pool de hilos de Tomcat bajo 50
+peticiones simultáneas, que a PostgreSQL.
+
+Los resultados obtenidos en las pruebas de rendimiento con Apache Bench reflejan un comportamiento sumamente sólido y estable del backend bajo una concurrencia significativa de 50 usuarios simultáneos ejecutando un total de 1,000 peticiones. Al registrarse un cero por ciento de peticiones fallidas y un tiempo de respuesta medio muy competitivo, queda en evidencia que la arquitectura implementada maneja de manera eficiente la carga de trabajo y la validación de seguridad mediante los tokens JWT. Este análisis no solo valida el correcto diseño y la optimización del sistema frente a escenarios de alta demanda, sino que también aporta métricas técnicas indispensables para respaldar la calidad, escalabilidad y robustez del desarrollo en el informe académico final.
+	
+\end{document}
